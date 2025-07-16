@@ -4,7 +4,8 @@
   "description": "Learning Node.js using express in this project.",
   "main": "index.js",
   "scripts": {
-  "test": "echo \"No tests yet\" && exit 0"
+    "start": "node index.js",
+    "test": "echo \"No tests yet\" && exit 0"
   },
   "author": {
     "name": "Abhinav Kumar Arya",
