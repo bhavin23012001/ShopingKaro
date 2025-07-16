@@ -16,19 +16,20 @@ steps:
       versionSpec: '$(node_version)'
     displayName: 'Install Node.js'
 
-  # Cache node_modules
-  - task: Cache@2
-    inputs:
-      key: 'npm | "$(Agent.OS)" | package-lock.json'
-      restoreKeys: |
-        npm | "$(Agent.OS)"
-      path: $(Pipeline.Workspace)/.npm
-    displayName: 'Cache node_modules'
-
   # Install dependencies
   - script: |
       npm ci --no-audit --no-fund
     displayName: 'Install dependencies'
+
+  # Cache node_modules (after install to ensure folder exists)
+  - task: Cache@2
+    inputs:
+      key: 'npm | "$(Agent.OS)" | $(Build.SourcesDirectory)/package-lock.json'
+      restoreKeys: |
+        npm | "$(Agent.OS)"
+      path: $(Build.SourcesDirectory)/node_modules
+    displayName: 'Cache node_modules'
+    continueOnError: true
 
   # Run tests (currently placeholder)
   - script: |
@@ -44,7 +45,7 @@ steps:
   # Publish artifact (optional if you want to deploy or share zipped app)
   - task: PublishBuildArtifacts@1
     inputs:
-      pathToPublish: '.'    # You can limit to dist/ or app/ if needed
+      pathToPublish: '$(Build.SourcesDirectory)'
       artifactName: 'shopingkaro-app'
       publishLocation: 'Container'
     condition: succeeded()
