@@ -4,7 +4,7 @@ trigger:
 pool:
   name: MyFreePool
   demands:
-    - agent -equals agent1 
+    - agent -equals agent2
 
 
 steps:
