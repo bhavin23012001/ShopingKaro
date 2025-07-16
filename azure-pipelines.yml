@@ -1,12 +1,10 @@
 trigger:
-  branches:
-    include:
-      - main
+- master
 
 pool:
-  name: freepool        
+  name: MyFreePool
   demands:
-    - agent.name -equals agent2  
+    - agent -equals agent1 
 
 
 steps:
