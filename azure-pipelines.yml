@@ -51,11 +51,11 @@ steps:
       publishLocation: 'Container'
     displayName: 'Publish artifact'
 
-  # 🔥 Actual Azure Web App Deployment Task
+  # ✅ Azure Web App Deployment (Fixed indentation + path)
   - task: AzureWebApp@1
     inputs:
-      azureSubscription: 'azure-rm-shopingkaro'  # ✅ The new service connection
+      azureSubscription: 'azure-rm-shopingkaro'   # ✅ Must match your service connection
       appType: 'webApp'
-      appName: 'shopingkaro-app-service'         # ✅ Your Azure Web App name
+      appName: 'shopingkaro-app-service'          # ✅ Must match Web App name in Azure
       package: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
     displayName: 'Deploy to Azure Web App'
