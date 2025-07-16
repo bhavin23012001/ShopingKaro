@@ -76,7 +76,7 @@ stages:
     - task: DownloadBuildArtifacts@0
       inputs:
         artifactName: 'shopingkaro-app'
-        downloadPath: '$(Build.ArtifactStagingDirectory)'
+        downloadPath: '$(Pipeline.Workspace)'
       displayName: 'Download build artifact'
 
     - task: AzureWebApp@1
@@ -84,8 +84,9 @@ stages:
         azureSubscription: 'azure-rm-shopingkaro'
         appType: 'webApp'
         appName: 'shopingkaro-app-service'
-        package: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
+        package: '$(Pipeline.Workspace)/shopingkaro-app/shopingkaro.zip'
       displayName: 'Deploy to Azure Web App'
+
 
 - stage: Release
   displayName: "Release Stage"
