@@ -10,18 +10,15 @@ variables:
   node_version: '18.x'
 
 steps:
-  # Install Node.js
   - task: NodeTool@0
     inputs:
       versionSpec: '$(node_version)'
     displayName: 'Install Node.js'
 
-  # Install dependencies
   - script: |
       npm ci --no-audit --no-fund
     displayName: 'Install dependencies'
 
-  # Cache node_modules (after install to ensure folder exists)
   - task: Cache@2
     inputs:
       key: 'npm | "$(Agent.OS)" | $(Build.SourcesDirectory)/package-lock.json'
@@ -31,22 +28,44 @@ steps:
     displayName: 'Cache node_modules'
     continueOnError: true
 
-  # Run tests (currently placeholder)
-  - script: |
-      npm test
+  - script: npm test
     displayName: 'Run tests'
 
-  # Build step (not needed for Express apps, optional placeholder)
   - script: |
-      echo "No build step needed for Node.js Express app"
+      echo "No build step needed for Express"
     displayName: 'Build step'
-    condition: succeeded()
 
-  # Publish artifact (optional if you want to deploy or share zipped app)
+  - task: ArchiveFiles@2
+    inputs:
+      rootFolderOrFile: '$(Build.SourcesDirectory)'
+      includeRootFolder: false
+      archiveType: 'zip'
+      archiveFile: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
+      replaceExistingArchive: true
+    displayName: 'Archive app'
+
   - task: PublishBuildArtifacts@1
     inputs:
-      pathToPublish: '$(Build.SourcesDirectory)'
+      pathToPublish: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
       artifactName: 'shopingkaro-app'
       publishLocation: 'Container'
-    condition: succeeded()
     displayName: 'Publish artifact'
+
+  - powershell: |
+      Write-Host "Stopping existing Node processes if any..."
+      Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force
+
+      $deployPath = "C:\deploy\shopingkaro"
+      if (Test-Path $deployPath) {
+        Remove-Item -Recurse -Force $deployPath
+      }
+      New-Item -ItemType Directory -Path $deployPath
+
+      Expand-Archive -Path "$(Build.ArtifactStagingDirectory)\shopingkaro.zip" -DestinationPath $deployPath -Force
+      cd $deployPath
+      npm install --omit=dev
+
+      Write-Host "Starting application with: node index.js"
+      Start-Process "node" "index.js"
+    displayName: 'Deploy and start app on self-hosted Azure VM'
+    condition: succeeded()
