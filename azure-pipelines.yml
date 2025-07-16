@@ -8,6 +8,7 @@ pool:
 
 variables:
   node_version: '18.x'
+  deploy_port: '4000'
 
 steps:
   - task: NodeTool@0
@@ -52,20 +53,22 @@ steps:
     displayName: 'Publish artifact'
 
   - powershell: |
-      Write-Host "Stopping existing Node processes if any..."
+      Write-Host "Stopping any running Node processes..."
       Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force
 
       $deployPath = "C:\deploy\shopingkaro"
       if (Test-Path $deployPath) {
         Remove-Item -Recurse -Force $deployPath
       }
-      New-Item -ItemType Directory -Path $deployPath
+      New-Item -ItemType Directory -Path $deployPath -Force | Out-Null
 
       Expand-Archive -Path "$(Build.ArtifactStagingDirectory)\shopingkaro.zip" -DestinationPath $deployPath -Force
+
       cd $deployPath
       npm install --omit=dev
 
-      Write-Host "Starting application with: node index.js"
-      Start-Process "node" "index.js"
-    displayName: 'Deploy and start app on self-hosted Azure VM'
+      Write-Host "Launching app on port $(deploy_port)..."
+      $env:PORT = "$(deploy_port)"
+      Start-Process "node" "index.js" -NoNewWindow
+    displayName: 'Deploy and start app on port 4000 (Azure VM)'
     condition: succeeded()
