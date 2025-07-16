@@ -5,21 +5,23 @@ const shopRoutes = require("./routes/shop");
 const PageNotFound = require("./helper/NotFound");
 const bodyParser = require("body-parser");
 const path = require("path");
-// const mongoConnect = require("./helper/database").mongoConnect;
 const User = require("./models/user");
 const mongoose = require("mongoose");
+
 const mongo_DB_URI = process.env.MONGO_DB_URI;
+const PORT = process.env.PORT || 4000; // ✅ Environment-based port
 
 const app = express();
-const PORT = 4000;
-// app.set("view engine", "pug");
+
+// View engine setup
 app.set("view engine", "ejs");
 app.set("views", "views");
 
-// const rootDir = require("./helper/path");
+// Static files and body parsing
 app.use(express.static(path.join(__dirname, "public")));
 app.use(bodyParser.urlencoded({ extended: false }));
 
+// Middleware to attach a default user
 app.use((req, res, next) => {
   User.findById("65aaa79a8945687d161ef472")
     .then((user) => {
@@ -31,40 +33,33 @@ app.use((req, res, next) => {
     });
 });
 
+// Routes
 app.use("/admin", adminRoutes);
-
 app.use(shopRoutes);
-
 app.use(PageNotFound);
 
+// Connect to MongoDB and start server
 mongoose
   .connect(mongo_DB_URI)
-  .then((result) => {
+  .then(() => {
     app.listen(PORT, () => {
-      console.log("Database connected");
+      console.log("✅ Database connected");
+      console.log(`🚀 App is running at http://localhost:${PORT}`);
+      
       User.findOne().then((user) => {
         if (!user) {
-          const user = new User({
+          const newUser = new User({
             name: "David",
             email: "david@gmail.com",
-            cart: {
-              items: [],
-            },
+            cart: { items: [] },
           });
-          user.save();
+          newUser.save();
         } else {
-          console.log("User Already Exist");
+          console.log("👤 User already exists");
         }
       });
-      console.log("App is running on the port http://localhost:4000");
     });
   })
   .catch((err) => {
-    console.log(err);
+    console.log("❌ MongoDB connection error:", err);
   });
-
-// mongoConnect(() => {
-//   app.listen(PORT, () => {
-//     console.log("App is running on the port http://localhost:3000");
-//   });
-// });
