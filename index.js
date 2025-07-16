@@ -42,7 +42,7 @@ app.use(PageNotFound);
 mongoose
   .connect(mongo_DB_URI)
   .then(() => {
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log("✅ Database connected");
       console.log(`🚀 App is running at http://localhost:${PORT}`);
       
