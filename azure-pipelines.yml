@@ -6,15 +6,46 @@ pool:
   demands:
     - agent -equals agent2
 
+variables:
+  node_version: '18.x'
 
 steps:
+  # Install Node.js
   - task: NodeTool@0
     inputs:
-      versionSpec: '18.x'
+      versionSpec: '$(node_version)'
     displayName: 'Install Node.js'
 
-  - script: npm ci --no-audit --no-fund
+  # Cache node_modules
+  - task: Cache@2
+    inputs:
+      key: 'npm | "$(Agent.OS)" | package-lock.json'
+      restoreKeys: |
+        npm | "$(Agent.OS)"
+      path: $(Pipeline.Workspace)/.npm
+    displayName: 'Cache node_modules'
+
+  # Install dependencies
+  - script: |
+      npm ci --no-audit --no-fund
     displayName: 'Install dependencies'
 
-  - script: npm test
+  # Run tests (currently placeholder)
+  - script: |
+      npm test
     displayName: 'Run tests'
+
+  # Build step (not needed for Express apps, optional placeholder)
+  - script: |
+      echo "No build step needed for Node.js Express app"
+    displayName: 'Build step'
+    condition: succeeded()
+
+  # Publish artifact (optional if you want to deploy or share zipped app)
+  - task: PublishBuildArtifacts@1
+    inputs:
+      pathToPublish: '.'    # You can limit to dist/ or app/ if needed
+      artifactName: 'shopingkaro-app'
+      publishLocation: 'Container'
+    condition: succeeded()
+    displayName: 'Publish artifact'
