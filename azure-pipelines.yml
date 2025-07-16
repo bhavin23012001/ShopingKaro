@@ -73,6 +73,12 @@ stages:
   jobs:
   - job: DeployWebApp
     steps:
+    - task: DownloadBuildArtifacts@0
+      inputs:
+        artifactName: 'shopingkaro-app'
+        downloadPath: '$(Build.ArtifactStagingDirectory)'
+      displayName: 'Download build artifact'
+
     - task: AzureWebApp@1
       inputs:
         azureSubscription: 'azure-rm-shopingkaro'
@@ -93,6 +99,5 @@ stages:
       runOnce:
         deploy:
           steps:
-          - script: echo " Application successfully released to production!"
+          - script: echo "✅ Application successfully released to production!"
             displayName: 'Release Confirmation'
-
