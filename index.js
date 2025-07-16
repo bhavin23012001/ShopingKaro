@@ -11,7 +11,7 @@ const mongoose = require("mongoose");
 const mongo_DB_URI = process.env.MONGO_DB_URI;
 
 const app = express();
-const PORT = 3000;
+const PORT = 4000;
 // app.set("view engine", "pug");
 app.set("view engine", "ejs");
 app.set("views", "views");
@@ -56,7 +56,7 @@ mongoose
           console.log("User Already Exist");
         }
       });
-      console.log("App is running on the port http://localhost:3000");
+      console.log("App is running on the port http://localhost:4000");
     });
   })
   .catch((err) => {
