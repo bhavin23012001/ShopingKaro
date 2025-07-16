@@ -9,19 +9,21 @@ const User = require("./models/user");
 const mongoose = require("mongoose");
 
 const mongo_DB_URI = process.env.MONGO_DB_URI;
-const PORT = process.env.PORT || 4000; // ✅ Environment-based port
+const PORT = process.env.PORT || 4000;
+
+if (!mongo_DB_URI) {
+  console.error("❌ MONGO_DB_URI not set in environment!");
+  process.exit(1); // Exit immediately if no DB URI
+}
 
 const app = express();
 
-// View engine setup
 app.set("view engine", "ejs");
 app.set("views", "views");
 
-// Static files and body parsing
 app.use(express.static(path.join(__dirname, "public")));
 app.use(bodyParser.urlencoded({ extended: false }));
 
-// Middleware to attach a default user
 app.use((req, res, next) => {
   User.findById("65aaa79a8945687d161ef472")
     .then((user) => {
@@ -29,23 +31,22 @@ app.use((req, res, next) => {
       next();
     })
     .catch((err) => {
-      console.log(err);
+      console.error("❌ Error fetching user:", err);
+      next(); // Don't hang request
     });
 });
 
-// Routes
 app.use("/admin", adminRoutes);
 app.use(shopRoutes);
 app.use(PageNotFound);
 
-// Connect to MongoDB and start server
 mongoose
   .connect(mongo_DB_URI)
   .then(() => {
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => { // Ensures it binds on all interfaces
       console.log("✅ Database connected");
       console.log(`🚀 App is running at http://localhost:${PORT}`);
-      
+
       User.findOne().then((user) => {
         if (!user) {
           const newUser = new User({
@@ -61,5 +62,5 @@ mongoose
     });
   })
   .catch((err) => {
-    console.log("❌ MongoDB connection error:", err);
+    console.error("❌ MongoDB connection error:", err);
   });
