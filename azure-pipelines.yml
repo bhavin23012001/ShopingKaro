@@ -11,8 +11,6 @@ pool:
 variables:
   - name: node_version
     value: '18.x'
-  - name: deploy_port
-    value: '4000'
 
 stages:
 # 1. Install Stage
