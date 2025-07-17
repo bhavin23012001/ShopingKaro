@@ -1,5 +1,7 @@
 trigger:
-- master
+  branches:
+    include:
+      - master
 
 pool:
   name: MyFreePool
@@ -7,103 +9,118 @@ pool:
     - agent -equals agent2
 
 variables:
-  node_version: '18.x'
-  deploy_port: '4000'
+  - name: node_version
+    value: '18.x'
+  - name: deploy_port
+    value: '4000'
 
 stages:
+# 1. Install Stage
 - stage: Install
-  displayName: "Install Stage"
+  displayName: "Install Dependencies"
   jobs:
-  - job: InstallNode
-    steps:
-    - task: NodeTool@0
-      inputs:
-        versionSpec: '$(node_version)'
-      displayName: 'Install Node.js'
+    - job: InstallNode
+      steps:
+        - task: NodeTool@0
+          inputs:
+            versionSpec: '$(node_version)'
+          displayName: 'Install Node.js'
+        - task: CmdLine@2
+          displayName: 'Install NPM dependencies'
+          inputs:
+            script: npm ci --no-audit --no-fund
 
-    - script: npm ci --no-audit --no-fund
-      displayName: 'Install dependencies'
-
+# 2. Test Stage
 - stage: Test
-  displayName: "Test Stage"
-  dependsOn: Install
+  displayName: "Run Unit Tests"
+  dependsOn:
+    - Install
   jobs:
-  - job: RunTests
-    steps:
-    - task: Cache@2
-      inputs:
-        key: 'npm | "$(Agent.OS)" | $(Build.SourcesDirectory)/package-lock.json'
-        restoreKeys: |
-          npm | "$(Agent.OS)"
-        path: $(Build.SourcesDirectory)/node_modules
-      displayName: 'Cache node_modules'
-      continueOnError: true
+    - job: RunTests
+      steps:
+        - task: Cache@2
+          inputs:
+            key: 'npm | "$(Agent.OS)" | $(Build.SourcesDirectory)/package-lock.json'
+            restoreKeys: |
+              npm | "$(Agent.OS)"
+            path: $(Build.SourcesDirectory)/node_modules
+          displayName: 'Cache node_modules'
+          continueOnError: true
+        - task: CmdLine@2
+          displayName: 'Run tests'
+          inputs:
+            script: npm test
 
-    - script: npm test
-      displayName: 'Run tests'
-
+# 3. Package Stage
 - stage: Package
-  displayName: "Package Stage"
-  dependsOn: Test
+  displayName: "Package App"
+  dependsOn:
+    - Test
   jobs:
-  - job: ArchiveAndPublish
-    steps:
-    - script: echo "No build step needed for Express"
-      displayName: 'Build step'
+    - job: ArchiveAndPublish
+      steps:
+        - task: CmdLine@2
+          displayName: 'Build step (Optional)'
+          inputs:
+            script: echo "No build step needed for Express"
+        - task: ArchiveFiles@2
+          inputs:
+            rootFolderOrFile: '$(Build.SourcesDirectory)'
+            includeRootFolder: false
+            archiveType: 'zip'
+            archiveFile: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
+            replaceExistingArchive: true
+          displayName: 'Archive app'
+        - task: PublishBuildArtifacts@1
+          inputs:
+            pathToPublish: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
+            artifactName: 'shopingkaro-app'
+            publishLocation: 'Container'
+          displayName: 'Publish artifact'
 
-    - task: ArchiveFiles@2
-      inputs:
-        rootFolderOrFile: '$(Build.SourcesDirectory)'
-        includeRootFolder: false
-        archiveType: 'zip'
-        archiveFile: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
-        replaceExistingArchive: true
-      displayName: 'Archive app'
-
-    - task: PublishBuildArtifacts@1
-      inputs:
-        pathToPublish: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
-        artifactName: 'shopingkaro-app'
-        publishLocation: 'Container'
-      displayName: 'Publish artifact'
-
-- stage: Deploy
-  displayName: "Deploy Stage"
-  dependsOn: Package
-  jobs:
-  - deployment: DeployWebApp
-    displayName: "Deploy to Azure"
-    environment: deployappr
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - task: DownloadBuildArtifacts@0
-            inputs:
-              artifactName: 'shopingkaro-app'
-              downloadPath: '$(Pipeline.Workspace)'
-            displayName: 'Download build artifact'
-
-          - task: AzureWebApp@1
-            inputs:
-              azureSubscription: 'azure-rm-shopingkaro'
-              appType: 'webApp'
-              appName: 'shopingkaro-app-service'
-              package: '$(Pipeline.Workspace)/shopingkaro-app/shopingkaro.zip'
-            displayName: 'Deploy to Azure Web App'
-
-
+# 4. Release Approval Stage
 - stage: Release
-  displayName: "Release Stage"
-  dependsOn: Deploy
+  displayName: "Release Approval Stage"
+  dependsOn:
+    - Package
   condition: succeeded()
   jobs:
-  - deployment: NotifyRelease
-    displayName: "Release Deployment"
-    environment: Release 
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - script: echo " Application successfully released to production!"
-            displayName: 'Release Confirmation'
+    - deployment: NotifyRelease
+      displayName: "Release Confirmation"
+      environment:
+        name: Release
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+              - task: CmdLine@2
+                displayName: 'Release Confirmation'
+                inputs:
+                  script: echo " Application ready for production deployment."
+
+# 5. Deploy Stage
+- stage: Deploy
+  displayName: "Deploy to Azure"
+  dependsOn:
+    - Release
+  jobs:
+    - deployment: DeployToAzureAppService
+      displayName: "Deploy Web App"
+      environment:
+        name: deployappr
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+              - task: DownloadBuildArtifacts@0
+                inputs:
+                  artifactName: 'shopingkaro-app'
+                  downloadPath: '$(Pipeline.Workspace)'
+                displayName: 'Download build artifact'
+              - task: AzureWebApp@1
+                inputs:
+                  azureSubscription: 'azure-rm-shopingkaro'
+                  appType: 'webApp'
+                  appName: 'shopingkaro-app-service'
+                  package: '$(Pipeline.Workspace)/shopingkaro-app/shopingkaro.zip'
+                displayName: 'Deploy to Azure Web App'
