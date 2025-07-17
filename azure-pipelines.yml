@@ -71,21 +71,26 @@ stages:
   displayName: "Deploy Stage"
   dependsOn: Package
   jobs:
-  - job: DeployWebApp
-    steps:
-    - task: DownloadBuildArtifacts@0
-      inputs:
-        artifactName: 'shopingkaro-app'
-        downloadPath: '$(Pipeline.Workspace)'
-      displayName: 'Download build artifact'
+  - deployment: DeployWebApp
+    displayName: "Deploy to Azure"
+    environment: deployappr
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: DownloadBuildArtifacts@0
+            inputs:
+              artifactName: 'shopingkaro-app'
+              downloadPath: '$(Pipeline.Workspace)'
+            displayName: 'Download build artifact'
 
-    - task: AzureWebApp@1
-      inputs:
-        azureSubscription: 'azure-rm-shopingkaro'
-        appType: 'webApp'
-        appName: 'shopingkaro-app-service'
-        package: '$(Pipeline.Workspace)/shopingkaro-app/shopingkaro.zip'
-      displayName: 'Deploy to Azure Web App'
+          - task: AzureWebApp@1
+            inputs:
+              azureSubscription: 'azure-rm-shopingkaro'
+              appType: 'webApp'
+              appName: 'shopingkaro-app-service'
+              package: '$(Pipeline.Workspace)/shopingkaro-app/shopingkaro.zip'
+            displayName: 'Deploy to Azure Web App'
 
 
 - stage: Release
