@@ -34,7 +34,7 @@ stages:
 
 # 2. Test Stage
 - stage: Test
-  displayName: "Run Unit Tests"
+  displayName: "Run Unit and E2E Tests"
   dependsOn:
     - Install
   jobs:
@@ -48,10 +48,33 @@ stages:
             path: $(Build.SourcesDirectory)/node_modules
           displayName: 'Cache node_modules'
           continueOnError: true
+
         - task: CmdLine@2
-          displayName: 'Run tests'
+          displayName: 'Run Unit Tests'
           inputs:
             script: npm test
+
+        # ✅ Install Playwright Browsers
+        - task: CmdLine@2
+          displayName: 'Install Playwright Browsers'
+          inputs:
+            script: npx playwright install --with-deps
+
+        # ✅ Run Playwright E2E Tests
+        - task: CmdLine@2
+          displayName: 'Run Playwright E2E Tests'
+          inputs:
+            script: npx playwright test
+
+        # ✅ Optional: Publish Playwright report as artifact
+        - task: PublishBuildArtifacts@1
+          condition: always()
+          inputs:
+            pathToPublish: 'playwright-report'
+            artifactName: 'playwright-report'
+            publishLocation: 'Container'
+          displayName: 'Publish Playwright HTML Report'
+
 
 # 3. Package Stage
 - stage: Package
