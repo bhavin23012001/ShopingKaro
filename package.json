@@ -17,7 +17,8 @@
   },
   "license": "ISC",
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.0.1",
+    "@playwright/test": "^1.44.0" // Added Playwright for E2E testing
   },
   "dependencies": {
     "body-parser": "^1.20.2",
