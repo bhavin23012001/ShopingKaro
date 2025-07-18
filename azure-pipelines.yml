@@ -10,8 +10,7 @@ trigger:
 
 pool:
   name: MyFreePool
-  demands:
-    - agent -equals agent2
+
 
 variables:
   - name: node_version
