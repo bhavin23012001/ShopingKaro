@@ -11,7 +11,6 @@ trigger:
 pool:
   name: MyFreePool
 
-
 variables:
   - name: node_version
     value: '18.x'
@@ -27,6 +26,7 @@ stages:
           inputs:
             versionSpec: '$(node_version)'
           displayName: 'Install Node.js'
+
         - task: CmdLine@2
           displayName: 'Install NPM dependencies'
           inputs:
@@ -54,19 +54,45 @@ stages:
           inputs:
             script: npm test
 
-        # ✅ Install Playwright Browsers
         - task: CmdLine@2
           displayName: 'Install Playwright Browsers'
           inputs:
             script: npx playwright install --with-deps
 
-        # ✅ Run Playwright E2E Tests
+        - task: CmdLine@2
+          displayName: 'Auto-generate playwright.config.ts if missing'
+          inputs:
+            script: |
+              if [ ! -f playwright.config.ts ]; then
+                echo "Creating default playwright.config.ts"
+                echo "import { defineConfig } from '@playwright/test';" > playwright.config.ts
+                echo "" >> playwright.config.ts
+                echo "export default defineConfig({" >> playwright.config.ts
+                echo "  testDir: './tests'," >> playwright.config.ts
+                echo "  timeout: 30000," >> playwright.config.ts
+                echo "  use: {" >> playwright.config.ts
+                echo "    baseURL: 'http://localhost:4000'," >> playwright.config.ts
+                echo "    headless: true," >> playwright.config.ts
+                echo "    viewport: { width: 1280, height: 720 }," >> playwright.config.ts
+                echo "    ignoreHTTPSErrors: true," >> playwright.config.ts
+                echo "    video: 'on'," >> playwright.config.ts
+                echo "  }," >> playwright.config.ts
+                echo "  reporter: [['html', { outputFolder: 'playwright-report' }]]" >> playwright.config.ts
+                echo "});" >> playwright.config.ts
+              fi
+
+        - task: CmdLine@2
+          displayName: 'Start local Express server (port 4000)'
+          inputs:
+            script: |
+              nohup npm start -- --port=4000 &
+              sleep 5
+
         - task: CmdLine@2
           displayName: 'Run Playwright E2E Tests'
           inputs:
             script: npx playwright test
 
-        # ✅ Optional: Publish Playwright report as artifact
         - task: PublishBuildArtifacts@1
           condition: always()
           inputs:
@@ -74,7 +100,6 @@ stages:
             artifactName: 'playwright-report'
             publishLocation: 'Container'
           displayName: 'Publish Playwright HTML Report'
-
 
 # 3. Package Stage
 - stage: Package
@@ -88,6 +113,7 @@ stages:
           displayName: 'Build step (Optional)'
           inputs:
             script: echo "No build step needed for Express"
+
         - task: ArchiveFiles@2
           inputs:
             rootFolderOrFile: '$(Build.SourcesDirectory)'
@@ -96,6 +122,7 @@ stages:
             archiveFile: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
             replaceExistingArchive: true
           displayName: 'Archive app'
+
         - task: PublishBuildArtifacts@1
           inputs:
             pathToPublish: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
@@ -121,7 +148,7 @@ stages:
               - task: CmdLine@2
                 displayName: 'Release Confirmation'
                 inputs:
-                  script: echo " Application ready for production deployment."
+                  script: echo "Application ready for production deployment."
 
 # 5. Deploy Stage
 - stage: Deploy
@@ -142,6 +169,7 @@ stages:
                   artifactName: 'shopingkaro-app'
                   downloadPath: '$(Pipeline.Workspace)'
                 displayName: 'Download build artifact'
+
               - task: AzureWebApp@1
                 inputs:
                   azureSubscription: 'azure-rm-shopingkaro'
