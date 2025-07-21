@@ -105,23 +105,24 @@ stages:
             Write-Host "playwright.config.js already exists"
           }
 
-    - task: PowerShell@2
-      displayName: 'Start local Express server (port 4000)'
+    - task: CmdLine@2
+      displayName: 'Start Express server in background'
       inputs:
-        targetType: 'inline'
         script: |
-          $env:PORT = 4000
-          $job = Start-Job -ScriptBlock { npm start }
-          Start-Sleep -Seconds 10
-          Write-Host "Server started with job ID: $($job.Id)"
+          echo "Starting Express server..."
+          set PORT=4000
+          start /B npm start
+          timeout /T 15 /NOBREAK
+          echo "Server startup wait completed"
       continueOnError: true
 
     - task: CmdLine@2
-      displayName: 'Check if server is running'
+      displayName: 'Verify server is running'
       inputs:
         script: |
           echo "Checking if server is running on port 4000..."
-          curl -f http://localhost:4000 || echo "Server not responding, continuing anyway..."
+          netstat -an | find "4000" || echo "Port 4000 not found in netstat"
+          powershell -Command "try { $response = Invoke-WebRequest -Uri http://localhost:4000 -TimeoutSec 5; Write-Host 'Server responded with status:' $response.StatusCode } catch { Write-Host 'Server not responding:' $_.Exception.Message }"
       continueOnError: true
 
     - task: CmdLine@2
