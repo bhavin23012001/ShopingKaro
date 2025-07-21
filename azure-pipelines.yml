@@ -16,122 +16,120 @@ variables:
     value: '18.x'
 
 stages:
-
 # 1. Install Stage
 - stage: Install
   displayName: "Install Dependencies"
   jobs:
-    - job: InstallNode
-      steps:
-        - task: NodeTool@0
-          inputs:
-            versionSpec: '$(node_version)'
-          displayName: 'Install Node.js'
+  - job: InstallNode
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '$(node_version)'
+      displayName: 'Install Node.js'
 
-        - task: CmdLine@2
-          displayName: 'Install NPM dependencies'
-          inputs:
-            script: npm ci --no-audit --no-fund
+    - task: CmdLine@2
+      displayName: 'Install NPM dependencies'
+      inputs:
+        script: npm ci --no-audit --no-fund
 
-        - task: CmdLine@2
-          displayName: 'Install Dev Dependencies (Optional)'
-          inputs:
-            script: npm install --only=dev
+    - task: CmdLine@2
+      displayName: 'Install Dev Dependencies (Optional)'
+      inputs:
+        script: npm install --only=dev
 
-        - task: CmdLine@2
-          displayName: 'Install Playwright Browsers'
-          inputs:
-            script: npx playwright install --with-deps
-
+    - task: CmdLine@2
+      displayName: 'Install Playwright Browsers'
+      inputs:
+        script: npx playwright install --with-deps
 
 # 2. Test Stage
 - stage: Test
   displayName: "Run Unit and E2E Tests"
   dependsOn: Install
   jobs:
-    - job: RunTests
-      steps:
-        - task: Cache@2
-          displayName: 'Cache node_modules'
-          inputs:
-            key: 'npm | "$(Agent.OS)" | $(Build.SourcesDirectory)/package-lock.json'
-            restoreKeys: |
-              npm | "$(Agent.OS)"
-            path: $(Build.SourcesDirectory)/node_modules
-          continueOnError: true
+  - job: RunTests
+    steps:
+    - task: Cache@2
+      displayName: 'Cache node_modules'
+      inputs:
+        key: 'npm | "$(Agent.OS)" | $(Build.SourcesDirectory)/package-lock.json'
+        restoreKeys: |
+          npm | "$(Agent.OS)"
+        path: $(Build.SourcesDirectory)/node_modules
+      continueOnError: true
 
-        - task: CmdLine@2
-          displayName: 'Run Unit Tests'
-          inputs:
-            script: npm test
+    - task: CmdLine@2
+      displayName: 'Run Unit Tests'
+      inputs:
+        script: npm test
 
-        - task: PowerShell@2
-          displayName: 'Auto-generate playwright.config.ts if missing'
-          inputs:
-            targetType: 'inline'
-            script: |
-              if (-not (Test-Path "playwright.config.ts")) {
-                $config = @"
-              import { defineConfig } from '@playwright/test';
-              export default defineConfig({
-                testDir: './tests',
-                reporter: [['html', { outputFolder: 'playwright-report', open: 'never' }]]
-              });
-              "@
-                $config | Set-Content -Encoding UTF8 "playwright.config.ts"
-              }
+    - task: PowerShell@2
+      displayName: 'Auto-generate playwright.config.js if missing'
+      inputs:
+        targetType: 'inline'
+        script: |
+          if (-not (Test-Path "playwright.config.js")) {
+            $config = @"
+          const { defineConfig } = require('@playwright/test');
+          module.exports = defineConfig({
+            testDir: './tests',
+            reporter: [['html', { outputFolder: 'playwright-report', open: 'never' }]]
+          });
+          "@
+            $config | Set-Content -Encoding UTF8 "playwright.config.js"
+          }
 
-        - task: PowerShell@2
-          displayName: 'Start local Express server (port 4000)'
-          inputs:
-            targetType: 'inline'
-            script: |
-              $env:PORT = 4000
-              Start-Process "npm" "start" -NoNewWindow
-              Start-Sleep -Seconds 5
+    - task: PowerShell@2
+      displayName: 'Start local Express server (port 4000)'
+      inputs:
+        targetType: 'inline'
+        script: |
+          $env:PORT = 4000
+          Start-Process "npm" "start" -NoNewWindow
+          Start-Sleep -Seconds 5
 
-        - task: CmdLine@2
-          displayName: 'Run Playwright E2E Tests'
-          inputs:
-            script: |
-              echo "Running Playwright tests..."
-              npx playwright test || echo "No tests found or tests failed."
+    - task: CmdLine@2
+      displayName: 'Run Playwright E2E Tests'
+      inputs:
+        script: |
+          echo "Running Playwright tests..."
+          npx playwright test --config=playwright.config.js || echo "No tests found or tests failed."
 
-        - task: PublishBuildArtifacts@1
-          condition: always()
-          displayName: 'Publish Playwright HTML Report'
-          inputs:
-            pathToPublish: 'playwright-report'
-            artifactName: 'playwright-report'
-            publishLocation: 'Container'
+    - task: PublishBuildArtifacts@1
+      condition: always()
+      displayName: 'Publish Playwright HTML Report'
+      inputs:
+        pathToPublish: 'playwright-report'
+        artifactName: 'playwright-report'
+        publishLocation: 'Container'
 
 # 3. Package Stage
 - stage: Package
   displayName: "Package App"
   dependsOn: Test
   jobs:
-    - job: ArchiveAndPublish
-      steps:
-        - task: CmdLine@2
-          displayName: 'Build step (Optional)'
-          inputs:
-            script: echo "No build step needed for Express"
+  - job: ArchiveAndPublish
+    steps:
+    - task: CmdLine@2
+      displayName: 'Build step (Optional)'
+      inputs:
+        script: echo "No build step needed for Express"
 
-        - task: ArchiveFiles@2
-          displayName: 'Archive app'
-          inputs:
-            rootFolderOrFile: '$(Build.SourcesDirectory)'
-            includeRootFolder: false
-            archiveType: 'zip'
-            archiveFile: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
-            replaceExistingArchive: true
+    - task: ArchiveFiles@2
+      displayName: 'Archive app'
+      inputs:
+        rootFolderOrFile: '$(Build.SourcesDirectory)'
+        includeRootFolder: false
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
+        replaceExistingArchive: true
 
-        - task: PublishBuildArtifacts@1
-          displayName: 'Publish artifact'
-          inputs:
-            pathToPublish: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
-            artifactName: 'shopingkaro-app'
-            publishLocation: 'Container'
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish artifact'
+      inputs:
+        pathToPublish: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
+        artifactName: 'shopingkaro-app'
+        publishLocation: 'Container'
 
 # 4. Release Approval Stage
 - stage: Release
@@ -139,42 +137,42 @@ stages:
   dependsOn: Package
   condition: succeeded()
   jobs:
-    - deployment: NotifyRelease
-      displayName: "Release Confirmation"
-      environment:
-        name: Release
-      strategy:
-        runOnce:
-          deploy:
-            steps:
-              - task: CmdLine@2
-                displayName: "Release Confirmation"
-                inputs:
-                  script: echo "Application ready for production deployment."
+  - deployment: NotifyRelease
+    displayName: "Release Confirmation"
+    environment:
+      name: Release
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: CmdLine@2
+            displayName: "Release Confirmation"
+            inputs:
+              script: echo "Application ready for production deployment."
 
 # 5. Deploy Stage
 - stage: Deploy
   displayName: "Deploy to Azure"
   dependsOn: Release
   jobs:
-    - deployment: DeployToAzureAppService
-      displayName: "Deploy Web App"
-      environment:
-        name: deployappr
-      strategy:
-        runOnce:
-          deploy:
-            steps:
-              - task: DownloadBuildArtifacts@0
-                displayName: "Download build artifact"
-                inputs:
-                  artifactName: "shopingkaro-app"
-                  downloadPath: "$(Pipeline.Workspace)"
+  - deployment: DeployToAzureAppService
+    displayName: "Deploy Web App"
+    environment:
+      name: deployappr
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: DownloadBuildArtifacts@0
+            displayName: "Download build artifact"
+            inputs:
+              artifactName: "shopingkaro-app"
+              downloadPath: "$(Pipeline.Workspace)"
 
-              - task: AzureWebApp@1
-                displayName: "Deploy to Azure Web App"
-                inputs:
-                  azureSubscription: "azure-rm-shopingkaro"
-                  appType: "webApp"
-                  appName: "shopingkaro-app-service"
-                  package: "$(Pipeline.Workspace)/shopingkaro-app/shopingkaro.zip"
+          - task: AzureWebApp@1
+            displayName: "Deploy to Azure Web App"
+            inputs:
+              azureSubscription: "azure-rm-shopingkaro"
+              appType: "webApp"
+              appName: "shopingkaro-app-service"
+              package: "$(Pipeline.Workspace)/shopingkaro-app/shopingkaro.zip"
