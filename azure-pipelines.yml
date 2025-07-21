@@ -34,9 +34,15 @@ stages:
             script: npm ci --no-audit --no-fund
 
         - task: CmdLine@2
+          displayName: 'Install Dev Dependencies (Optional)'
+          inputs:
+            script: npm install --only=dev
+
+        - task: CmdLine@2
           displayName: 'Install Playwright Browsers'
           inputs:
             script: npx playwright install --with-deps
+
 
 # 2. Test Stage
 - stage: Test
