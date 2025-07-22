@@ -15,7 +15,7 @@ variables:
   - name: node_version
     value: '18.x'
   - name: SCM_DO_BUILD_DURING_DEPLOYMENT
-    value: false
+    value: true  # Ensure Azure handles build during deployment
 
 stages:
 
@@ -57,25 +57,32 @@ stages:
         key: 'npm | "$(Agent.OS)" | $(Build.SourcesDirectory)/package-lock.json'
         restoreKeys: |
           npm | "$(Agent.OS)"
-        path: $(Build.SourcesDirectory)/node_modules
+        path: $(Build.SourcesDirectory)/node_modules'
       continueOnError: true
 
     - script: npm ci --no-audit --no-fund
       displayName: 'Install NPM dependencies'
 
     - script: |
-        npm install @playwright/test
+        npm install @playwright/test allure-playwright --save-dev
         npx playwright install --with-deps
-      displayName: 'Install Playwright & Browsers'
+      displayName: 'Install Playwright, Allure, & Browsers'
 
     - script: npm test
       displayName: 'Run Unit Tests'
       continueOnError: true
 
     - script: |
-        mkdir -p playwright-report
-        npx playwright test --reporter=html || echo "Tests failed but report will still be generated."
-      displayName: 'Run Playwright Tests with Report'
+        mkdir playwright-report
+        npx playwright test --reporter=html || echo "Tests failed but HTML report will still be generated."
+      displayName: 'Run Playwright Tests with HTML Report'
+      continueOnError: true
+
+    - script: |
+        mkdir allure-results
+        npx playwright test --reporter=allure-playwright || echo "Tests failed but Allure results will still be generated."
+        npx allure generate allure-results -o allure-report --clean
+      displayName: 'Run Playwright Tests with Allure Report'
       continueOnError: true
 
     - task: PublishBuildArtifacts@1
@@ -86,6 +93,14 @@ stages:
         artifactName: 'playwright-report'
         publishLocation: 'Container'
 
+    - task: PublishBuildArtifacts@1
+      condition: always()
+      displayName: 'Publish Allure Report'
+      inputs:
+        pathToPublish: 'allure-report'
+        artifactName: 'allure-report'
+        publishLocation: 'Container'
+
 # 3. Package Stage
 - stage: Package
   displayName: "Package App"
@@ -93,11 +108,25 @@ stages:
   jobs:
   - job: ArchiveAndPublish
     steps:
-    - script: echo "No build step needed for Express"
-      displayName: 'Build step (Optional)'
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '$(node_version)'
+      displayName: 'Install Node.js'
+
+    - script: npm ci --no-audit --no-fund
+      displayName: 'Install NPM dependencies before packaging'
+      env:
+        NODE_ENV: production  # Ensure production dependencies are installed
+
+    - script: |
+        IF NOT EXIST node_modules (
+          echo Error: node_modules directory not found after npm ci. Check package.json and package-lock.json.
+          exit 1
+        )
+      displayName: 'Verify node_modules directory'
 
     - task: ArchiveFiles@2
-      displayName: 'Archive app including .env (if needed)'
+      displayName: 'Archive app including .env and node_modules'
       inputs:
         rootFolderOrFile: '$(Build.SourcesDirectory)'
         includeRootFolder: false
@@ -107,6 +136,7 @@ stages:
         archiveFilePatterns: |
           **/*
           .env
+          node_modules/**  # Explicitly include node_modules
 
     - task: PublishBuildArtifacts@1
       displayName: 'Publish artifact'
