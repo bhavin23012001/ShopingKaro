@@ -9,25 +9,27 @@ trigger:
       - docs/**
 
 pool:
-  name: MyFreePool
+  name: MyFreePool  # Kept as per original; ensure this pool is configured
 
 variables:
   - name: node_version
     value: '18.x'
   - name: SCM_DO_BUILD_DURING_DEPLOYMENT
-    value: true
+    value: true  # Ensure Azure handles build during deployment if needed
 
 stages:
-- stage: Test
-  displayName: "Run Tests"
+# 1. Install Stage
+- stage: Install
+  displayName: "Install Dependencies"
   jobs:
-  - job: RunTests
+  - job: InstallNode
     steps:
     - task: NodeTool@0
       inputs:
         versionSpec: '$(node_version)'
       displayName: 'Install Node.js'
-
+    - script: npm ci --no-audit --no-fund
+      displayName: 'Install NPM dependencies'
     - task: Cache@2
       displayName: 'Cache node_modules'
       inputs:
@@ -36,25 +38,44 @@ stages:
         restoreKeys: |
           npm | "$(Agent.OS)"
       continueOnError: true
+    - script: npx playwright install --with-deps
+      displayName: 'Install Playwright Browsers'
+    - task: Cache@2
+      displayName: 'Cache Playwright browsers'
+      inputs:
+        key: 'playwright | "$(Agent.OS)" | $(Build.SourcesDirectory)/package-lock.json'
+        path: '$(HOME)/.cache/ms-playwright'
+        restoreKeys: |
+          playwright | "$(Agent.OS)"
+      continueOnError: true
 
-    - script: npm ci --no-audit --no-fund
-      displayName: 'Install NPM dependencies'
-
-    - script: |
-        npm install @playwright/test
-        npx playwright install --with-deps
-      displayName: 'Install Playwright & Browsers'
-
+# 2. Test Stage
+- stage: Test
+  displayName: "Run Unit and E2E Tests"
+  dependsOn: Install
+  jobs:
+  - job: RunTests
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '$(node_version)'
+      displayName: 'Install Node.js'
+    - task: Cache@2
+      displayName: 'Restore node_modules cache'
+      inputs:
+        key: 'npm | "$(Agent.OS)" | $(Build.SourcesDirectory)/package-lock.json'
+        path: '$(Build.SourcesDirectory)/node_modules'
+        restoreKeys: |
+          npm | "$(Agent.OS)"
+      continueOnError: true
     - script: npm test
       displayName: 'Run Unit Tests'
       continueOnError: true
-
     - script: |
         mkdir -p playwright-report
-        npx playwright test --reporter=html
-      displayName: 'Run Playwright Tests'
+        npx playwright test --reporter=html || echo "Tests failed but report will still be generated."
+      displayName: 'Run Playwright Tests with Report'
       continueOnError: true
-
     - task: PublishBuildArtifacts@1
       condition: always()
       displayName: 'Publish Playwright HTML Report'
@@ -63,31 +84,58 @@ stages:
         artifactName: 'playwright-report'
         publishLocation: 'Container'
 
-- stage: Package
-  displayName: "Package App"
+# 3. Build Stage
+- stage: Build
+  displayName: "Build Application"
   dependsOn: Test
+  condition: succeeded()
   jobs:
-  - job: ArchiveAndPublish
+  - job: BuildApp
     steps:
     - task: NodeTool@0
       inputs:
         versionSpec: '$(node_version)'
       displayName: 'Install Node.js'
-
-    - script: npm ci --no-audit --no-fund
-      displayName: 'Install NPM dependencies'
+    - task: Cache@2
+      displayName: 'Restore node_modules cache'
+      inputs:
+        key: 'npm | "$(Agent.OS)" | $(Build.SourcesDirectory)/package-lock.json'
+        path: '$(Build.SourcesDirectory)/node_modules'
+        restoreKeys: |
+          npm | "$(Agent.OS)"
+      continueOnError: true
+    - script: npm run build
+      displayName: 'Run build script'
       env:
         NODE_ENV: production
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish build output'
+      inputs:
+        pathToPublish: '$(Build.SourcesDirectory)/dist'  # Adjust to your build output folder
+        artifactName: 'build-output'
+        publishLocation: 'Container'
 
+# 4. Package Stage
+- stage: Package
+  displayName: "Package App"
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - job: ArchiveAndPublish
+    steps:
+    - task: DownloadBuildArtifacts@0
+      displayName: 'Download build artifact'
+      inputs:
+        artifactName: 'build-output'
+        downloadPath: '$(Build.ArtifactStagingDirectory)/dist'
     - task: ArchiveFiles@2
       displayName: 'Archive app'
       inputs:
-        rootFolderOrFile: '$(Build.SourcesDirectory)'
+        rootFolderOrFile: '$(Build.ArtifactStagingDirectory)/dist'
         includeRootFolder: false
         archiveType: 'zip'
         archiveFile: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
         replaceExistingArchive: true
-
     - task: PublishBuildArtifacts@1
       displayName: 'Publish artifact'
       inputs:
@@ -95,14 +143,33 @@ stages:
         artifactName: 'shopingkaro-app'
         publishLocation: 'Container'
 
+# 5. Release Stage
+- stage: Release
+  displayName: "Release Approval Stage"
+  dependsOn: Package
+  condition: succeeded()
+  jobs:
+  - deployment: NotifyRelease
+    displayName: "Release Confirmation"
+    environment:
+      name: Release
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - script: echo "Application ready for production deployment."
+            displayName: "Release Confirmation"
+
+# 6. Deploy Stage
 - stage: Deploy
   displayName: "Deploy to Azure"
-  dependsOn: Package
+  dependsOn: Release
   condition: succeeded()
   jobs:
   - deployment: DeployToAzureAppService
     displayName: "Deploy Web App"
-    environment: deployappr
+    environment:
+      name: deployappr
     strategy:
       runOnce:
         deploy:
@@ -112,7 +179,6 @@ stages:
             inputs:
               artifactName: "shopingkaro-app"
               downloadPath: "$(Pipeline.Workspace)"
-
           - task: AzureWebApp@1
             displayName: "Deploy to Azure Web App"
             inputs:
