@@ -64,9 +64,9 @@ stages:
       displayName: 'Install NPM dependencies'
 
     - script: |
-        npm install @playwright/test
+        npm install @playwright/test @playwright/allure-playwright --save-dev
         npx playwright install --with-deps
-      displayName: 'Install Playwright & Browsers'
+      displayName: 'Install Playwright, Allure, & Browsers'
 
     - script: npm test
       displayName: 'Run Unit Tests'
@@ -75,7 +75,14 @@ stages:
     - script: |
         mkdir -p playwright-report
         npx playwright test --reporter=html || echo "Tests failed but report will still be generated."
-      displayName: 'Run Playwright Tests with Report'
+      displayName: 'Run Playwright Tests with HTML Report'
+      continueOnError: true
+
+    - script: |
+        mkdir -p allure-report
+        npx playwright test --reporter=allure-playwright || echo "Tests failed but Allure report will still be generated."
+        npx allure generate allure-results -o allure-report --clean
+      displayName: 'Run Playwright Tests with Allure Report'
       continueOnError: true
 
     - task: PublishBuildArtifacts@1
@@ -84,6 +91,14 @@ stages:
       inputs:
         pathToPublish: 'playwright-report'
         artifactName: 'playwright-report'
+        publishLocation: 'Container'
+
+    - task: PublishBuildArtifacts@1
+      condition: always()
+      displayName: 'Publish Allure Report'
+      inputs:
+        pathToPublish: 'allure-report'
+        artifactName: 'allure-report'
         publishLocation: 'Container'
 
 # 3. Package Stage
