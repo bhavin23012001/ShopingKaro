@@ -15,7 +15,7 @@ variables:
   - name: node_version
     value: '18.x'
   - name: SCM_DO_BUILD_DURING_DEPLOYMENT
-    value: false
+    value: true  # Enable build during deployment
 
 stages:
 
@@ -97,7 +97,7 @@ stages:
       displayName: 'Build step (Optional)'
 
     - task: ArchiveFiles@2
-      displayName: 'Archive app including .env (if needed)'
+      displayName: 'Archive app including .env'
       inputs:
         rootFolderOrFile: '$(Build.SourcesDirectory)'
         includeRootFolder: false
@@ -106,7 +106,7 @@ stages:
         replaceExistingArchive: true
         archiveFilePatterns: |
           **/*
-          .env
+          .env  # Explicitly include .env file
 
     - task: PublishBuildArtifacts@1
       displayName: 'Publish artifact'
