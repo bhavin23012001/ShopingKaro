@@ -14,6 +14,9 @@ pool:
 variables:
   - name: node_version
     value: '18.x'
+  - name: SCM_DO_BUILD_DURING_DEPLOYMENT
+    value: false
+
 
 stages:
 # 1. Install Stage
@@ -273,7 +276,6 @@ stages:
         replaceExistingArchive: true
         archiveFilePatterns: |
           **/*
-          !**/node_modules/**
           .env
 
     - task: PublishBuildArtifacts@1
