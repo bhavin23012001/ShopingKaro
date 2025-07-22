@@ -264,13 +264,17 @@ stages:
         script: echo "No build step needed for Express"
 
     - task: ArchiveFiles@2
-      displayName: 'Archive app'
+      displayName: 'Archive app including .env (if needed)'
       inputs:
         rootFolderOrFile: '$(Build.SourcesDirectory)'
         includeRootFolder: false
         archiveType: 'zip'
         archiveFile: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
         replaceExistingArchive: true
+        archiveFilePatterns: |
+          **/*
+          !**/node_modules/**
+          .env
 
     - task: PublishBuildArtifacts@1
       displayName: 'Publish artifact'
