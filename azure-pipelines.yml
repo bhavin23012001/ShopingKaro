@@ -104,10 +104,10 @@ stages:
         NODE_ENV: production  # Ensure production dependencies are installed
 
     - script: |
-        if [ ! -d "node_modules" ]; then
-          echo "Error: node_modules directory not found after npm ci. Check package.json and package-lock.json."
+        IF NOT EXIST node_modules (
+          echo Error: node_modules directory not found after npm ci. Check package.json and package-lock.json.
           exit 1
-        fi
+        )
       displayName: 'Verify node_modules directory'
 
     - task: ArchiveFiles@2
