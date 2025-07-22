@@ -57,7 +57,7 @@ stages:
         key: 'npm | "$(Agent.OS)" | $(Build.SourcesDirectory)/package-lock.json'
         restoreKeys: |
           npm | "$(Agent.OS)"
-        path: $(Build.SourcesDirectory)/node_modules
+        path: $(Build.SourcesDirectory)/node_modules'
       continueOnError: true
 
     - script: npm ci --no-audit --no-fund
@@ -93,8 +93,22 @@ stages:
   jobs:
   - job: ArchiveAndPublish
     steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '$(node_version)'
+      displayName: 'Install Node.js'
+
     - script: npm ci --no-audit --no-fund
       displayName: 'Install NPM dependencies before packaging'
+      env:
+        NODE_ENV: production  # Ensure production dependencies are installed
+
+    - script: |
+        if [ ! -d "node_modules" ]; then
+          echo "Error: node_modules directory not found after npm ci. Check package.json and package-lock.json."
+          exit 1
+        fi
+      displayName: 'Verify node_modules directory'
 
     - task: ArchiveFiles@2
       displayName: 'Archive app including .env and node_modules'
@@ -107,6 +121,7 @@ stages:
         archiveFilePatterns: |
           **/*
           .env
+          node_modules/**  # Explicitly include node_modules
 
     - task: PublishBuildArtifacts@1
       displayName: 'Publish artifact'
