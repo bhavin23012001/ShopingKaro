@@ -4,7 +4,6 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const path = require("path");
 const mongoose = require("mongoose");
-
 const adminRoutes = require("./routes/admin");
 const shopRoutes = require("./routes/shop");
 const PageNotFound = require("./helper/NotFound");
@@ -12,21 +11,18 @@ const User = require("./models/user");
 
 const app = express();
 
-const mongo_DB_URI = process.env.MONGO_DB_URI;
+const mongo_DB_URI = process.env.MONGO_DB_URI || "mongodb://localhost:27017/defaultdb";
 const PORT = process.env.PORT || 4000;
 
-if (!mongo_DB_URI) {
-    console.error("❌ Error: MONGO_DB_URI not found in .env file.");
-    process.exit(1);
+if (!mongo_DB_URI || mongo_DB_URI === "mongodb://localhost:27017/defaultdb") {
+    console.warn("⚠️ Warning: MONGO_DB_URI not set, using default. This may cause connection issues.");
 }
 
 app.set("view engine", "ejs");
 app.set("views", "views");
-
 app.use(express.static(path.join(__dirname, "public")));
 app.use(bodyParser.urlencoded({ extended: false }));
 
-// Inject test user into every request
 app.use(async (req, res, next) => {
     try {
         const user = await User.findById("65aaa79a8945687d161ef472");
@@ -37,7 +33,7 @@ app.use(async (req, res, next) => {
         next();
     } catch (err) {
         console.error("❌ Error fetching user:", err.message);
-        next(); // allow request to proceed without user
+        next();
     }
 });
 
@@ -51,8 +47,6 @@ mongoose.connect(mongo_DB_URI)
         app.listen(PORT, '0.0.0.0', () => {
             console.log(`🚀 Server running at http://localhost:${PORT}`);
         });
-
-        // Ensure a default user exists
         User.findOne().then((user) => {
             if (!user) {
                 const newUser = new User({
@@ -69,7 +63,6 @@ mongoose.connect(mongo_DB_URI)
         }).catch((err) => {
             console.error("❌ Error ensuring user exists:", err.message);
         });
-
     })
     .catch((err) => {
         console.error("❌ MongoDB connection failed:", err.message);
