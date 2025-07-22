@@ -15,7 +15,7 @@ variables:
   - name: node_version
     value: '18.x'
   - name: SCM_DO_BUILD_DURING_DEPLOYMENT
-    value: true  # Enable build during deployment
+    value: true  # Ensure Azure handles build during deployment
 
 stages:
 
@@ -93,11 +93,11 @@ stages:
   jobs:
   - job: ArchiveAndPublish
     steps:
-    - script: echo "No build step needed for Express"
-      displayName: 'Build step (Optional)'
+    - script: npm ci --no-audit --no-fund
+      displayName: 'Install NPM dependencies before packaging'
 
     - task: ArchiveFiles@2
-      displayName: 'Archive app including .env'
+      displayName: 'Archive app including .env and node_modules'
       inputs:
         rootFolderOrFile: '$(Build.SourcesDirectory)'
         includeRootFolder: false
@@ -106,7 +106,7 @@ stages:
         replaceExistingArchive: true
         archiveFilePatterns: |
           **/*
-          .env  # Explicitly include .env file
+          .env
 
     - task: PublishBuildArtifacts@1
       displayName: 'Publish artifact'
