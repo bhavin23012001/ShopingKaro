@@ -64,7 +64,7 @@ stages:
       displayName: 'Install NPM dependencies'
 
     - script: |
-        npm install @playwright/test @playwright/allure-playwright --save-dev
+        npm install @playwright/test allure-playwright --save-dev
         npx playwright install --with-deps
       displayName: 'Install Playwright, Allure, & Browsers'
 
@@ -73,14 +73,14 @@ stages:
       continueOnError: true
 
     - script: |
-        mkdir -p playwright-report
-        npx playwright test --reporter=html || echo "Tests failed but report will still be generated."
+        mkdir playwright-report
+        npx playwright test --reporter=html || echo "Tests failed but HTML report will still be generated."
       displayName: 'Run Playwright Tests with HTML Report'
       continueOnError: true
 
     - script: |
-        mkdir -p allure-report
-        npx playwright test --reporter=allure-playwright || echo "Tests failed but Allure report will still be generated."
+        mkdir allure-results
+        npx playwright test --reporter=allure-playwright || echo "Tests failed but Allure results will still be generated."
         npx allure generate allure-results -o allure-report --clean
       displayName: 'Run Playwright Tests with Allure Report'
       continueOnError: true
