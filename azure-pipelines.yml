@@ -9,16 +9,17 @@ trigger:
       - docs/**
 
 pool:
-  name: MyFreePool  # Kept as per original; ensure this pool is configured
+  name: MyFreePool
 
-
-# Define reusable variables
 variables:
-  node_version: '18.x'
-  SCM_DO_BUILD_DURING_DEPLOYMENT: true  # Let Azure handle build during deployment
+  - name: node_version
+    value: '18.x'
+  - name: SCM_DO_BUILD_DURING_DEPLOYMENT
+    value: true  # Ensure Azure handles build during deployment
 
 stages:
-# 1. Install dependencies and cache them for reuse
+
+# 1. Install Stage
 - stage: Install
   displayName: "Install Dependencies"
   jobs:
@@ -27,27 +28,18 @@ stages:
     - task: NodeTool@0
       inputs:
         versionSpec: '$(node_version)'
-      displayName: 'Set up Node.js'
-    - script: npm ci --no-audit --no-fund
-      displayName: 'Install project dependencies'
-    - task: Cache@2
-      displayName: 'Cache node_modules'
-      inputs:
-        key: 'npm | "$(Agent.OS)" | $(Build.SourcesDirectory)/package-lock.json'
-        path: '$(Build.SourcesDirectory)/node_modules'
-        restoreKeys: 'npm | "$(Agent.OS)"'
-      continueOnError: true
-    - script: npx playwright install --with-deps
-      displayName: 'Install Playwright browsers'
-    - task: Cache@2
-      displayName: 'Cache Playwright browsers'
-      inputs:
-        key: 'playwright | "$(Agent.OS)" | $(Build.SourcesDirectory)/package-lock.json'
-        path: '$(HOME)/.cache/ms-playwright'
-        restoreKeys: 'playwright | "$(Agent.OS)"'
-      continueOnError: true
+      displayName: 'Install Node.js'
 
-# 2. Run unit and E2E tests, publish test report
+    - script: npm ci --no-audit --no-fund
+      displayName: 'Install NPM dependencies'
+
+    - script: npm install --only=dev
+      displayName: 'Install Dev Dependencies'
+
+    - script: npx playwright install --with-deps
+      displayName: 'Install Playwright Browsers'
+
+# 2. Test Stage
 - stage: Test
   displayName: "Run Unit and E2E Tests"
   dependsOn: Install
@@ -57,126 +49,127 @@ stages:
     - task: NodeTool@0
       inputs:
         versionSpec: '$(node_version)'
-      displayName: 'Set up Node.js'
+      displayName: 'Install Node.js'
+
     - task: Cache@2
-      displayName: 'Restore node_modules cache'
+      displayName: 'Cache node_modules'
       inputs:
         key: 'npm | "$(Agent.OS)" | $(Build.SourcesDirectory)/package-lock.json'
-        path: '$(Build.SourcesDirectory)/node_modules'
-        restoreKeys: 'npm | "$(Agent.OS)"'
+        restoreKeys: |
+          npm | "$(Agent.OS)"
+        path: $(Build.SourcesDirectory)/node_modules'
       continueOnError: true
+
+    - script: npm ci --no-audit --no-fund
+      displayName: 'Install NPM dependencies'
+
+    - script: |
+        npm install @playwright/test
+        npx playwright install --with-deps
+      displayName: 'Install Playwright & Browsers'
+
     - script: npm test
-      displayName: 'Run unit tests'
+      displayName: 'Run Unit Tests'
       continueOnError: true
+
     - script: |
         mkdir -p playwright-report
-        npx playwright test --reporter=html || echo "Tests failed, but report generated."
-      displayName: 'Run Playwright E2E tests'
+        npx playwright test --reporter=html || echo "Tests failed but report will still be generated."
+      displayName: 'Run Playwright Tests with Report'
       continueOnError: true
+
     - task: PublishBuildArtifacts@1
       condition: always()
-      displayName: 'Publish Playwright test report'
+      displayName: 'Publish Playwright HTML Report'
       inputs:
         pathToPublish: 'playwright-report'
         artifactName: 'playwright-report'
         publishLocation: 'Container'
 
-# 3. Build the application for production
-- stage: Build
-  displayName: "Build Application"
+# 3. Package Stage
+- stage: Package
+  displayName: "Package App"
   dependsOn: Test
-  condition: succeeded()
   jobs:
-  - job: BuildApp
+  - job: ArchiveAndPublish
     steps:
     - task: NodeTool@0
       inputs:
         versionSpec: '$(node_version)'
-      displayName: 'Set up Node.js'
-    - task: Cache@2
-      displayName: 'Restore node_modules cache'
-      inputs:
-        key: 'npm | "$(Agent.OS)" | $(Build.SourcesDirectory)/package-lock.json'
-        path: '$(Build.SourcesDirectory)/node_modules'
-        restoreKeys: 'npm | "$(Agent.OS)"'
-      continueOnError: true
-    - script: npm run build
-      displayName: 'Build app for production'
-      env:
-        NODE_ENV: production
-    - task: PublishBuildArtifacts@1
-      displayName: 'Publish build output'
-      inputs:
-        pathToPublish: '$(Build.SourcesDirectory)/dist'  # Adjust if build output is not 'dist'
-        artifactName: 'build-output'
-        publishLocation: 'Container'
+      displayName: 'Install Node.js'
 
-# 4. Package the build output into a zip file
-- stage: Package
-  displayName: "Package App"
-  dependsOn: Build
-  condition: succeeded()
-  jobs:
-  - job: ArchiveAndPublish
-    steps:
-    - task: DownloadBuildArtifacts@0
-      displayName: 'Download build output'
-      inputs:
-        artifactName: 'build-output'
-        downloadPath: '$(Build.ArtifactStagingDirectory)/dist'
+    - script: npm ci --no-audit --no-fund
+      displayName: 'Install NPM dependencies before packaging'
+      env:
+        NODE_ENV: production  # Ensure production dependencies are installed
+
+    - script: |
+        IF NOT EXIST node_modules (
+          echo Error: node_modules directory not found after npm ci. Check package.json and package-lock.json.
+          exit 1
+        )
+      displayName: 'Verify node_modules directory'
+
     - task: ArchiveFiles@2
-      displayName: 'Create app zip'
+      displayName: 'Archive app including .env and node_modules'
       inputs:
-        rootFolderOrFile: '$(Build.ArtifactStagingDirectory)/dist'
+        rootFolderOrFile: '$(Build.SourcesDirectory)'
         includeRootFolder: false
         archiveType: 'zip'
         archiveFile: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
         replaceExistingArchive: true
+        archiveFilePatterns: |
+          **/*
+          .env
+          node_modules/**  # Explicitly include node_modules
+
     - task: PublishBuildArtifacts@1
-      displayName: 'Publish app zip'
+      displayName: 'Publish artifact'
       inputs:
         pathToPublish: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
         artifactName: 'shopingkaro-app'
         publishLocation: 'Container'
 
-# 5. Approval gate before deployment
+# 4. Release Approval Stage
 - stage: Release
-  displayName: "Release Approval"
+  displayName: "Release Approval Stage"
   dependsOn: Package
   condition: succeeded()
   jobs:
   - deployment: NotifyRelease
-    displayName: "Await Release Approval"
-    environment: Release
+    displayName: "Release Confirmation"
+    environment:
+      name: Release
     strategy:
       runOnce:
         deploy:
           steps:
-          - script: echo "Ready for production deployment."
-            displayName: 'Confirm release readiness'
+          - script: echo "Application ready for production deployment."
+            displayName: "Release Confirmation"
 
-# 6. Deploy to Azure Web App
+# 5. Deploy Stage
 - stage: Deploy
   displayName: "Deploy to Azure"
   dependsOn: Release
-  condition: succeeded()
   jobs:
   - deployment: DeployToAzureAppService
     displayName: "Deploy Web App"
-    environment: deployappr
+    environment:
+      name: deployappr
     strategy:
       runOnce:
         deploy:
           steps:
           - task: DownloadBuildArtifacts@0
-            displayName: 'Download app zip'
+            displayName: "Download build artifact"
             inputs:
-              artifactName: 'shopingkaro-app'
-              downloadPath: '$(Pipeline.Workspace)'
+              artifactName: "shopingkaro-app"
+              downloadPath: "$(Pipeline.Workspace)"
+
           - task: AzureWebApp@1
-            displayName: 'Deploy to Azure Web App'
+            displayName: "Deploy to Azure Web App"
             inputs:
-              azureSubscription: 'azure-rm-shopingkaro'
-              appType: 'webApp'
-              appName: 'shopingkaro-app-service'
-              package: '$(Pipeline.Workspace)/shopingkaro-app/shopingkaro.zip'
+              azureSubscription: "azure-rm-shopingkaro"
+              appType: "webApp"
+              appName: "shopingkaro-app-service"
+              package: "$(Pipeline.Workspace)/shopingkaro-app/shopingkaro.zip"
