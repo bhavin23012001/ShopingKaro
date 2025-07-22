@@ -19,7 +19,7 @@ variables:
 
 stages:
 
-# 1. Install Dependencies
+# 1. Install Stage
 - stage: Install
   displayName: "Install Dependencies"
   jobs:
@@ -30,15 +30,18 @@ stages:
         versionSpec: '$(node_version)'
       displayName: 'Install Node.js'
 
-    - script: npm install
-      displayName: 'Install all dependencies (including dotenv)'
+    - script: npm ci --no-audit --no-fund
+      displayName: 'Install NPM dependencies'
+
+    - script: npm install --only=dev
+      displayName: 'Install Dev Dependencies'
 
     - script: npx playwright install --with-deps
       displayName: 'Install Playwright Browsers'
 
 # 2. Test Stage
 - stage: Test
-  displayName: "Run Tests"
+  displayName: "Run Unit and E2E Tests"
   dependsOn: Install
   jobs:
   - job: RunTests
@@ -48,18 +51,36 @@ stages:
         versionSpec: '$(node_version)'
       displayName: 'Install Node.js'
 
-    - script: npm ci
-      displayName: 'Reinstall dependencies'
+    - task: Cache@2
+      displayName: 'Cache node_modules'
+      inputs:
+        key: 'npm | "$(Agent.OS)" | $(Build.SourcesDirectory)/package-lock.json'
+        restoreKeys: |
+          npm | "$(Agent.OS)"
+        path: $(Build.SourcesDirectory)/node_modules
+      continueOnError: true
+
+    - script: npm ci --no-audit --no-fund
+      displayName: 'Install NPM dependencies'
 
     - script: |
-        npm test || echo "No unit tests yet"
-        npx playwright test --config=playwright.config.js --reporter=html || echo "E2E tests skipped or failed"
-      displayName: 'Run Unit and E2E Tests'
+        npm install @playwright/test
+        npx playwright install --with-deps
+      displayName: 'Install Playwright & Browsers'
+
+    - script: npm test
+      displayName: 'Run Unit Tests'
+      continueOnError: true
+
+    - script: |
+        mkdir -p playwright-report
+        npx playwright test --reporter=html || echo "Tests failed but report will still be generated."
+      displayName: 'Run Playwright Tests with Report'
       continueOnError: true
 
     - task: PublishBuildArtifacts@1
       condition: always()
-      displayName: 'Publish Playwright Report'
+      displayName: 'Publish Playwright HTML Report'
       inputs:
         pathToPublish: 'playwright-report'
         artifactName: 'playwright-report'
@@ -72,11 +93,11 @@ stages:
   jobs:
   - job: ArchiveAndPublish
     steps:
-    - script: echo "Packaging Express app..."
-      displayName: 'Log Packaging Start'
+    - script: echo "No build step needed for Express"
+      displayName: 'Build step (Optional)'
 
     - task: ArchiveFiles@2
-      displayName: 'Archive app (include node_modules and .env)'
+      displayName: 'Archive app including .env (if needed)'
       inputs:
         rootFolderOrFile: '$(Build.SourcesDirectory)'
         includeRootFolder: false
@@ -85,16 +106,16 @@ stages:
         replaceExistingArchive: true
         archiveFilePatterns: |
           **/*
-          !**/*.log
+          .env
 
     - task: PublishBuildArtifacts@1
-      displayName: 'Publish zipped app artifact'
+      displayName: 'Publish artifact'
       inputs:
         pathToPublish: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
         artifactName: 'shopingkaro-app'
         publishLocation: 'Container'
 
-# 4. Manual Release Approval Stage
+# 4. Release Approval Stage
 - stage: Release
   displayName: "Release Approval Stage"
   dependsOn: Package
@@ -108,10 +129,10 @@ stages:
       runOnce:
         deploy:
           steps:
-          - script: echo "✅ Application ready for production deployment."
-            displayName: "Release Approval"
+          - script: echo "Application ready for production deployment."
+            displayName: "Release Confirmation"
 
-# 5. Deploy to Azure
+# 5. Deploy Stage
 - stage: Deploy
   displayName: "Deploy to Azure"
   dependsOn: Release
