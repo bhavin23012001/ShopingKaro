@@ -160,7 +160,7 @@ stages:
     - deployment: DeployToAzureAppService
       displayName: "Deploy Web App"
       environment:
-        name: node-qa  # dev / qa / master → node-dev / node-qa / node-prod
+        name: QA-APPROVAL  
       strategy:
         runOnce:
           deploy:
