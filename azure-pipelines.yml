@@ -15,7 +15,7 @@ variables:
   - name: node_version
     value: '18.x'
   - name: SCM_DO_BUILD_DURING_DEPLOYMENT
-    value: true  # Ensure Azure handles build during deployment
+    value: true
 
 stages:
 
@@ -90,7 +90,7 @@ stages:
       inputs:
         testResultsDir: 'allure-results'
         reportDir: 'allure-report'
-        allureVersion: '2.27.0'  # Optional (latest supported)
+        allureVersion: '2.27.0'
 
     - task: PublishBuildArtifacts@1
       condition: always()
@@ -152,7 +152,7 @@ stages:
         artifactName: 'shopingkaro-app'
         publishLocation: 'Container'
 
-# 4. Release Approval Stage
+# 4. Release Approval Stage (Optional)
 - stage: Release
   displayName: "Release Approval Stage"
   dependsOn: Package
@@ -161,7 +161,7 @@ stages:
   - deployment: NotifyRelease
     displayName: "Release Confirmation"
     environment:
-      name: Release
+      name: node-production
     strategy:
       runOnce:
         deploy:
