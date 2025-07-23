@@ -161,7 +161,7 @@ stages:
       steps:
         - script: |
             echo "Simulating manager approval for PRODUCTION"
-            sleep 10
+            timeout /T 10 /NOBREAK >nul
             echo "Approved. Proceeding with deployment."
           displayName: "Simulated Approval"
 
