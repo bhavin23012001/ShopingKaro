@@ -158,12 +158,15 @@ stages:
   condition: and(succeeded(), eq(variables['Build.SourceBranchName'], 'master'))
   jobs:
     - job: SimulateApproval
+      pool:
+        vmImage: 'windows-latest'
       steps:
-        - script: |
-            echo "Simulating manager approval for PRODUCTION"
-            timeout /T 10 /NOBREAK >nul
-            echo "Approved. Proceeding with deployment."
+        - powershell: |
+            Write-Output "Simulating manager approval for PRODUCTION"
+            Start-Sleep -Seconds 10
+            Write-Output "Approved. Proceeding with deployment."
           displayName: "Simulated Approval"
+
 
 # 5. Deployment Stage for All Branches
 - stage: Deploy
