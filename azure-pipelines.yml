@@ -177,7 +177,7 @@ stages:
   - deployment: DeployToAzureAppService
     displayName: "Deploy Web App"
     environment:
-      name: deployappr
+      name: node-production
     strategy:
       runOnce:
         deploy:
