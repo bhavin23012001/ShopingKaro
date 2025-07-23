@@ -151,7 +151,7 @@ stages:
             artifactName: 'shopingkaro-app'
             publishLocation: 'Container'
 
-# 4. Simulated Approval for Prod Only
+# 4. Simulated Approval for Production Only
 - stage: Release
   displayName: "Simulated Manual Approval (Prod Only)"
   dependsOn: Package
@@ -167,18 +167,18 @@ stages:
             Write-Output "Approved. Proceeding with deployment."
           displayName: "Simulated Approval"
 
-
-# 5. Deployment Stage for All Branches
+# 5. Deployment for All Branches
 - stage: Deploy
-  displayName: "Deploy to Azure Based on Branch"
+  displayName: "Deploy Based on Branch"
   dependsOn:
     - Package
-    - Release  # only runs for master
+    - Release  # Only applies if branch is master
+  condition: succeeded()
   jobs:
     - deployment: DeployToAzureAppService
       displayName: "Deploy Web App"
       environment:
-        name: node-$(environmentName)
+        name: node-$(environmentName)  # Uses dev, qa, or prod
       strategy:
         runOnce:
           deploy:
