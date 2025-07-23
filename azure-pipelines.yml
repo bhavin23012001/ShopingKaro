@@ -160,7 +160,7 @@ stages:
     - deployment: DeployToAzureAppService
       displayName: "Deploy Web App"
       environment:
-        name: node-$(environmentName)  # dev / qa / master → node-dev / node-qa / node-prod
+        name: node-qa  # dev / qa / master → node-dev / node-qa / node-prod
       strategy:
         runOnce:
           deploy:
