@@ -1,9 +1,12 @@
 trigger:
   branches:
     include:
-      - dev
-      - qa
       - master
+  paths:
+    exclude:
+      - azure-pipelines.yml
+      - README.md
+      - docs/**
 
 pool:
   name: MyFreePool
@@ -13,8 +16,6 @@ variables:
     value: '18.x'
   - name: SCM_DO_BUILD_DURING_DEPLOYMENT
     value: true
-  - name: environmentName
-    value: $[lower(variables['Build.SourceBranchName'])]
 
 stages:
 
@@ -22,177 +23,196 @@ stages:
 - stage: Install
   displayName: "Install Dependencies"
   jobs:
-    - job: InstallNode
-      steps:
-        - task: NodeTool@0
-          inputs:
-            versionSpec: '$(node_version)'
-          displayName: 'Install Node.js'
+  - job: InstallNode
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '$(node_version)'
+      displayName: 'Install Node.js'
 
-        - script: npm ci --no-audit --no-fund
-          displayName: 'Install NPM dependencies'
+    - script: npm ci --no-audit --no-fund
+      displayName: 'Install NPM dependencies'
 
-        - script: npm install --only=dev
-          displayName: 'Install Dev Dependencies'
+    - script: npm install --only=dev
+      displayName: 'Install Dev Dependencies'
 
-        - script: npx playwright install --with-deps
-          displayName: 'Install Playwright Browsers'
+    - script: npx playwright install --with-deps
+      displayName: 'Install Playwright Browsers'
 
 # 2. Test Stage
 - stage: Test
   displayName: "Run Unit and E2E Tests"
   dependsOn: Install
   jobs:
-    - job: RunTests
-      steps:
-        - task: NodeTool@0
-          inputs:
-            versionSpec: '$(node_version)'
-          displayName: 'Install Node.js'
+  - job: RunTests
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '$(node_version)'
+      displayName: 'Install Node.js'
 
-        - task: Cache@2
-          displayName: 'Cache node_modules'
-          inputs:
-            key: 'npm | "$(Agent.OS)" | $(Build.SourcesDirectory)/package-lock.json'
-            restoreKeys: |
-              npm | "$(Agent.OS)"
-            path: '$(Build.SourcesDirectory)/node_modules'
-          continueOnError: true
+    - task: Cache@2
+      displayName: 'Cache node_modules'
+      inputs:
+        key: 'npm | "$(Agent.OS)" | $(Build.SourcesDirectory)/package-lock.json'
+        restoreKeys: |
+          npm | "$(Agent.OS)"
+        path: '$(Build.SourcesDirectory)/node_modules'
+      continueOnError: true
 
-        - script: npm ci --no-audit --no-fund
-          displayName: 'Install NPM dependencies'
+    - script: npm ci --no-audit --no-fund
+      displayName: 'Install NPM dependencies'
 
-        - script: |
-            npm install @playwright/test allure-playwright allure-commandline --save-dev
-            npx playwright install --with-deps
-          displayName: 'Install Playwright, Allure, and Browsers'
+    - script: |
+        npm install @playwright/test allure-playwright allure-commandline --save-dev
+        npx playwright install --with-deps
+      displayName: 'Install Playwright, Allure, and Browsers'
 
-        - script: npm test
-          displayName: 'Run Unit Tests'
-          continueOnError: true
+    - script: npm test
+      displayName: 'Run Unit Tests'
+      continueOnError: true
 
-        - script: |
-            mkdir -p playwright-report
-            mkdir -p allure-results
-            npx playwright test --reporter=html,allure-playwright || echo "Tests failed but reports will still be generated."
-          displayName: 'Run Playwright Tests with HTML and Allure Reporters'
-          continueOnError: true
+    - script: |
+        mkdir -p playwright-report
+        mkdir -p allure-results
+        npx playwright test --reporter=html,allure-playwright || echo "Tests failed but reports will still be generated."
+      displayName: 'Run Playwright Tests with HTML and Allure Reporters'
+      continueOnError: true
 
-        - script: |
-            npx allure generate allure-results --clean -o allure-report
-          displayName: 'Generate Allure Report'
-          continueOnError: true
+    - script: |
+        npx allure generate allure-results --clean -o allure-report
+      displayName: 'Generate Allure Report'
+      continueOnError: true
 
-        - task: PublishAllureReport@1
-          condition: always()
-          displayName: 'Publish Allure Report to Azure DevOps UI'
-          inputs:
-            testResultsDir: 'allure-results'
-            reportDir: 'allure-report'
-            allureVersion: '2.27.0'
+    - task: PublishAllureReport@1
+      condition: always()
+      displayName: 'Publish Allure Report to Azure DevOps UI'
+      inputs:
+        testResultsDir: 'allure-results'
+        reportDir: 'allure-report'
+        allureVersion: '2.27.0'
 
-        - task: PublishBuildArtifacts@1
-          condition: always()
-          displayName: 'Publish Playwright HTML Report'
-          inputs:
-            pathToPublish: 'playwright-report'
-            artifactName: 'playwright-report'
-            publishLocation: 'Container'
+    - task: PublishBuildArtifacts@1
+      condition: always()
+      displayName: 'Publish Playwright HTML Report'
+      inputs:
+        pathToPublish: 'playwright-report'
+        artifactName: 'playwright-report'
+        publishLocation: 'Container'
 
-        - task: PublishBuildArtifacts@1
-          condition: always()
-          displayName: 'Publish Allure Report Artifact'
-          inputs:
-            pathToPublish: 'allure-report'
-            artifactName: 'allure-report'
-            publishLocation: 'Container'
+    - task: PublishBuildArtifacts@1
+      condition: always()
+      displayName: 'Publish Allure Report Artifact'
+      inputs:
+        pathToPublish: 'allure-report'
+        artifactName: 'allure-report'
+        publishLocation: 'Container'
 
 # 3. Package Stage
 - stage: Package
   displayName: "Package App"
   dependsOn: Test
   jobs:
-    - job: ArchiveAndPublish
-      steps:
-        - task: NodeTool@0
-          inputs:
-            versionSpec: '$(node_version)'
-          displayName: 'Install Node.js'
+  - job: ArchiveAndPublish
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '$(node_version)'
+      displayName: 'Install Node.js'
 
-        - script: npm ci --no-audit --no-fund
-          displayName: 'Install NPM dependencies before packaging'
-          env:
-            NODE_ENV: production
+    - script: npm ci --no-audit --no-fund
+      displayName: 'Install NPM dependencies before packaging'
+      env:
+        NODE_ENV: production
 
-        - script: |
-            IF NOT EXIST node_modules (
-              echo Error: node_modules directory not found after npm ci. Check package.json and package-lock.json.
-              exit 1
-            )
-          displayName: 'Verify node_modules directory'
+    - script: |
+        IF NOT EXIST node_modules (
+          echo Error: node_modules directory not found after npm ci. Check package.json and package-lock.json.
+          exit 1
+        )
+      displayName: 'Verify node_modules directory'
 
-        - task: ArchiveFiles@2
-          displayName: 'Archive app including .env and node_modules'
-          inputs:
-            rootFolderOrFile: '$(Build.SourcesDirectory)'
-            includeRootFolder: false
-            archiveType: 'zip'
-            archiveFile: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
-            replaceExistingArchive: true
-            archiveFilePatterns: |
-              **/*
-              .env
-              node_modules/**
+    - task: ArchiveFiles@2
+      displayName: 'Archive app including .env and node_modules'
+      inputs:
+        rootFolderOrFile: '$(Build.SourcesDirectory)'
+        includeRootFolder: false
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
+        replaceExistingArchive: true
+        archiveFilePatterns: |
+          **/*
+          .env
+          node_modules/**
 
-        - task: PublishBuildArtifacts@1
-          displayName: 'Publish artifact'
-          inputs:
-            pathToPublish: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
-            artifactName: 'shopingkaro-app'
-            publishLocation: 'Container'
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish artifact'
+      inputs:
+        pathToPublish: '$(Build.ArtifactStagingDirectory)/shopingkaro.zip'
+        artifactName: 'shopingkaro-app'
+        publishLocation: 'Container'
 
-# 4. Simulated Approval for Prod Only
+# 4. Release Approval Stage (Optional)
 - stage: Release
-  displayName: "Simulated Manual Approval (Prod Only)"
+  displayName: "Release Approval Stage"
   dependsOn: Package
-  condition: and(succeeded(), eq(variables['Build.SourceBranchName'], 'master'))
+  condition: succeeded()
   jobs:
-    - job: SimulateApproval
-      steps:
-        - script: |
-            echo "Simulating manager approval for PRODUCTION"
-            sleep 10
-            echo "Approved. Proceeding with deployment."
-          displayName: "Simulated Approval"
+  - deployment: NotifyRelease
+    displayName: "Release Confirmation"
+    environment:
+      name: node-production
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - script: echo "Application ready for production deployment."
+            displayName: "Release Confirmation"
 
-# 5. Deployment Stage for All Branches
+# 5. Deploy Stage
 - stage: Deploy
-  displayName: "Deploy to Azure Based on Branch"
-  dependsOn:
-    - Package
-    - Release  # only runs for master
+  displayName: "Deploy to Azure"
+  dependsOn: Release
+  condition: succeeded()
   jobs:
-    - deployment: DeployToAzureAppService
-      displayName: "Deploy Web App"
-      environment:
-        name: node-$(environmentName)
-      strategy:
-        runOnce:
-          deploy:
-            steps:
-              - task: DownloadBuildArtifacts@0
-                displayName: "Download build artifact"
-                inputs:
-                  artifactName: "shopingkaro-app"
-                  downloadPath: "$(Pipeline.Workspace)"
+  - deployment: DeployToAzureAppService
+    displayName: "Deploy Web App"
+    environment:
+      name: node-production
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          # Fetch secrets from Azure Key Vault
+          - task: AzureKeyVault@2
+            displayName: 'Fetch secrets from Azure Key Vault'
+            inputs:
+              azureSubscription: 'azure-rm-shopingkaro'
+              KeyVaultName: 'shopingkaro-kv'
+              SecretsFilter: '*'
+              RunAsPreJob: true
 
-              - script: echo "Deploying for branch $(Build.SourceBranchName)"
-                displayName: "Show Branch"
+          # Download artifact
+          - task: DownloadBuildArtifacts@0
+            displayName: "Download build artifact"
+            inputs:
+              artifactName: "shopingkaro-app"
+              downloadPath: "$(Pipeline.Workspace)"
 
-              - task: AzureWebApp@1
-                displayName: "Deploy to Azure Web App"
-                inputs:
-                  azureSubscription: "azure-rm-shopingkaro"
-                  appType: "webApp"
-                  appName: "shopingkaro-app-service"
-                  package: "$(Pipeline.Workspace)/shopingkaro-app/shopingkaro.zip"
+          # Deploy to Azure Web App with secret-injected app settings
+          - task: AzureWebApp@1
+            displayName: "Deploy to Azure Web App"
+            inputs:
+              azureSubscription: "azure-rm-shopingkaro"
+              appType: "webApp"
+              appName: "shopingkaro-app-service"
+              package: "$(Pipeline.Workspace)/shopingkaro-app/shopingkaro.zip"
+              appSettings: |
+                -DB_CONN_STRING=$(DB_CONN_STRING)
+                -API_KEY=$(API_KEY)
+
+          # Optional Rollback Trigger (logs only, add real rollback logic in app if needed)
+          - script: |
+              echo "Deployment completed. If you need rollback, trigger manually or enable staging slot swap with saved previous version."
+            displayName: "Post Deployment Notice"
+
