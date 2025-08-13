@@ -16,17 +16,20 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for better SonarCloud analysis
 
-      # ---------------- SONARQUBE ----------------
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v2
+      # ---------------- SONARCLOUD ----------------
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2
         with:
           args: >
+            -Dsonar.organization=bhavin23012001
             -Dsonar.projectKey=ShopingKaro
             -Dsonar.projectName=ShopingKaro
         env:
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: "https://sonarcloud.io"
 
       # ---------------- TRIVY ----------------
       - name: Install Trivy
