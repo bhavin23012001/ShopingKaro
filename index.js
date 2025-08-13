@@ -15,7 +15,7 @@ const mongo_DB_URI = process.env.MONGO_DB_URI || "mongodb://localhost:27017/defa
 const PORT = process.env.PORT || 4000;
 
 if (!mongo_DB_URI || mongo_DB_URI === "mongodb://localhost:27017/defaultdb") {
-    console.warn("⚠️ Warning: MONGO_DB_URI not set, using default. This may cause connection issues.");
+    console.warn("⚠️ Warning: MONGO_DB_URI not set, using default. This may cause connection Issues.");
 }
 
 app.set("view engine", "ejs");
