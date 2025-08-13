@@ -1,0 +1,54 @@
+name: DevSecOps CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  security-checks:
+    name: Security Scans
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ---------------- SONARQUBE ----------------
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v2
+        with:
+          args: >
+            -Dsonar.projectKey=ShopingKaro
+            -Dsonar.projectName=ShopingKaro
+        env:
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      # ---------------- TRIVY ----------------
+      - name: Install Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget
+          wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.55.0_Linux-64bit.deb
+          sudo dpkg -i trivy_0.55.0_Linux-64bit.deb
+
+      - name: Run Trivy Scan on filesystem
+        run: trivy fs --exit-code 1 --severity HIGH,CRITICAL .
+
+      # ---------------- SNYK ----------------
+      - name: Set up Node.js for Snyk
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Snyk
+        run: npm install -g snyk
+
+      - name: Run Snyk to check for vulnerabilities
+        run: snyk test --all-projects
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
