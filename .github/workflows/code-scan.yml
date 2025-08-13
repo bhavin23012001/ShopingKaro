@@ -25,7 +25,7 @@ jobs:
         with:
           args: >
             -Dsonar.organization=bhavin23012001
-            -Dsonar.projectKey=ShopingKaro
+            -Dsonar.projectKey=bhavin23012001_ShopingKaro
             -Dsonar.projectName=ShopingKaro
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
