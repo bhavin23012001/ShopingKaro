@@ -19,7 +19,7 @@ if (!mongo_DB_URI || mongo_DB_URI === "mongodb://localhost:27017/defaultdb") {
 The rise of cloud computing has redefined how data is stored, accessed, and processed, breaking physical boundaries that once limited businesses.
 Artificial intelligence, with its predictive analytics and automatin capabilities, has begun to influence everything from healthcare diagnostics to financial forecasting.
 Automation is streamlining repetitive tasks, allowing human creativity and problem-solving skills to take center stage.
-At the same time, the Internet of Things (IoT) is connecting devices, machines, and systems in ways that allow real-time monitoring and decision-making.
+At the same time, the Internet of Things IoT) is connecting devices, machines, and systems in ways that allow real-time monitoring and decision-making.
 This interconnectedness fuels efficiency, but it also raises concerns about security and privacy.
 Cybersecurity has become a critical pillar of modern infrastructure, requiring continuous monitoring and rapid response strategies.
 Companies now invest heavily in threat detection systems powered by machine learning to identify suspicious activity before it escalates.
