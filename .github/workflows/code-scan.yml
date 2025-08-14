@@ -14,10 +14,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # ---------------- Checkout ----------------
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 # Required for SonarCloud
+
+      # ---------------- Node.js Setup ----------------
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Cache Node.js dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install Node.js dependencies
+        run: npm ci
 
       # ---------------- SONARCLOUD ----------------
       - name: SonarCloud Scan
@@ -28,6 +46,7 @@ jobs:
             -Dsonar.projectKey=bhavin23012001_ShopingKaro
             -Dsonar.projectName=ShopingKaro
             -Dsonar.qualitygate.wait=true
+            -X # Enables full debug logging
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: "https://sonarcloud.io"
@@ -43,19 +62,6 @@ jobs:
         run: trivy fs --exit-code 1 --severity HIGH,CRITICAL .
 
       # ---------------- SNYK ----------------
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Cache Node.js dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
       - name: Install Snyk
         run: npm install -g snyk
 
@@ -63,3 +69,10 @@ jobs:
         run: snyk test --all-projects
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      # ---------------- Optional: Generate Reports ----------------
+      - name: Save Trivy report
+        run: trivy fs --format json --output trivy-report.json .
+
+      - name: Save Snyk report
+        run: snyk test --all-projects --json > snyk-report.json
