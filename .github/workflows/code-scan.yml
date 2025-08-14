@@ -36,7 +36,8 @@ jobs:
       - name: Install Trivy
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh
-          sudo mv trivy /usr/local/bin/trivy
+          sudo mv ./bin/trivy /usr/local/bin/trivy
+          trivy --version
 
       - name: Run Trivy Scan on filesystem
         run: trivy fs --exit-code 1 --severity HIGH,CRITICAL .
