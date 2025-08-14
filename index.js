@@ -18,10 +18,27 @@ if (!mongo_DB_URI || mongo_DB_URI === "mongodb://localhost:27017/defaultdb") {
     console.warn("⚠️ Waaaaaaaaaaarning: MONGO_DB_URI not set, using default. This may cause connection issues.");
 }
 
+// ====== Vulnerable: Hardcoded secret ======
+const API_SECRET = "FAKE_SECRET_KEY_12345"; // Will be detected by Trivy
+console.log("Using API secret:", API_SECRET);
+
 app.set("view engine", "ejs");
 app.set("views", "views");
 app.use(express.static(path.join(__dirname, "public")));
 app.use(bodyParser.urlencoded({ extended: false }));
+
+// ====== Vulnerable: Unvalidated MongoDB query & unsafe eval route ======
+app.get("/user/:id", async (req, res) => {
+    const id = req.params.id; // No validation
+    const user = await User.findById(id);
+    res.json(user);
+});
+
+app.get("/eval-test", (req, res) => {
+    const userInput = req.query.input || "console.log('hello')";
+    eval(userInput); // Unsafe
+    res.send("Eval executed");
+});
 
 app.use(async (req, res, next) => {
     try {

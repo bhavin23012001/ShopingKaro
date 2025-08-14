@@ -1,0 +1,83 @@
+name: DevSecOps CI
+
+on:
+  pull_request:
+    branches:
+      - master   # Run only for PRs targeting master
+      - qa
+      - dev
+
+jobs:
+  security-checks:
+    name: Security & Quality Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      # ---------------- Checkout ----------------
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for SonarCloud analysis
+
+      # ---------------- Node.js Setup ----------------
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Cache Node.js dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      # ---------------- Install Dependencies ----------------
+      - name: Install Node.js dependencies
+        run: npm install
+
+      # ---------------- Optional: Upgrade Vulnerable Dependencies ----------------
+      - name: Upgrade High-Severity Dependencies
+        run: |
+          npm audit fix --force || true
+          npm install
+
+      # ---------------- SONARCLOUD ----------------
+      - name: SonarCloud Scan (Fail if Quality Gate Fails)
+        uses: SonarSource/sonarcloud-github-action@v2
+        with:
+          args: >
+            -Dsonar.organization=bhavin23012001
+            -Dsonar.projectKey=bhavin23012001_ShopingKaro
+            -Dsonar.projectName=ShopingKaro
+            -Dsonar.qualitygate.wait=true   # Block until quality gate passes/fails
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: "https://sonarcloud.io"
+
+      # ---------------- TRIVY ----------------
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh
+          sudo mv ./bin/trivy /usr/local/bin/trivy
+          trivy --version
+
+      - name: Run Trivy Scan (non-blocking)
+        run: trivy fs --exit-code 0 --severity HIGH,CRITICAL . || true
+
+      # ---------------- SNYK ----------------
+      - name: Install Snyk
+        run: npm install -g snyk
+
+      - name: Run Snyk Scan (non-blocking)
+        run: snyk test --all-projects || true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      # ---------------- Save Reports ----------------
+      - name: Save Trivy report
+        run: trivy fs --format json --output trivy-report.json . || true
+
+      - name: Save Snyk report
+        run: snyk test --all-projects --json > snyk-report.json || true
