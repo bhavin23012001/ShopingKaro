@@ -1,16 +1,15 @@
 name: DevSecOps CI
 
 on:
-  push:
-    branches:
-      - master
   pull_request:
     branches:
-      - master
+      - master   # Run only for PRs targeting master
+      - qa
+      - dev
 
 jobs:
   security-checks:
-    name: Security Scans
+    name: Security & Quality Checks
     runs-on: ubuntu-latest
 
     steps:
@@ -18,7 +17,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Required for SonarCloud
+          fetch-depth: 0 # Required for SonarCloud analysis
 
       # ---------------- Node.js Setup ----------------
       - name: Set up Node.js
@@ -45,16 +44,14 @@ jobs:
           npm install
 
       # ---------------- SONARCLOUD ----------------
-      - name: SonarCloud Scan
+      - name: SonarCloud Scan (Fail if Quality Gate Fails)
         uses: SonarSource/sonarcloud-github-action@v2
-        continue-on-error: true   # <-- allow pipeline to continue
         with:
           args: >
             -Dsonar.organization=bhavin23012001
             -Dsonar.projectKey=bhavin23012001_ShopingKaro
             -Dsonar.projectName=ShopingKaro
-            -Dsonar.qualitygate.wait=true
-            -X
+            -Dsonar.qualitygate.wait=true   # Block until quality gate passes/fails
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: "https://sonarcloud.io"
@@ -66,19 +63,19 @@ jobs:
           sudo mv ./bin/trivy /usr/local/bin/trivy
           trivy --version
 
-      - name: Run Trivy Scan
-        run: trivy fs --exit-code 1 --severity HIGH,CRITICAL . || true
+      - name: Run Trivy Scan (non-blocking)
+        run: trivy fs --exit-code 0 --severity HIGH,CRITICAL . || true
 
       # ---------------- SNYK ----------------
       - name: Install Snyk
         run: npm install -g snyk
 
-      - name: Run Snyk Scan
+      - name: Run Snyk Scan (non-blocking)
         run: snyk test --all-projects || true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # ---------------- Generate Reports ----------------
+      # ---------------- Save Reports ----------------
       - name: Save Trivy report
         run: trivy fs --format json --output trivy-report.json . || true
 
