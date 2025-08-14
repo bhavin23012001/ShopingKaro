@@ -3,7 +3,7 @@ name: DevSecOps CI
 on:
   pull_request:
     branches:
-      - master   # Run only for PRs targeting master
+      - master
       - qa
       - dev
 
@@ -43,15 +43,20 @@ jobs:
           npm audit fix --force || true
           npm install
 
+      # ---------------- Run Unit Tests with Coverage ----------------
+      - name: Run Tests and Generate Coverage
+        run: npm test -- --coverage --coverageReporters=lcov
+
       # ---------------- SONARCLOUD ----------------
       - name: SonarCloud Scan (Fail if Quality Gate Fails)
         uses: SonarSource/sonarcloud-github-action@v2
         with:
-          args: >
+          args: |
             -Dsonar.organization=bhavin23012001
             -Dsonar.projectKey=bhavin23012001_ShopingKaro
             -Dsonar.projectName=ShopingKaro
-            -Dsonar.qualitygate.wait=true   # Block until quality gate passes/fails
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.qualitygate.wait=true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: "https://sonarcloud.io"
