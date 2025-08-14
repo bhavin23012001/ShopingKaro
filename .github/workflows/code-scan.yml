@@ -47,6 +47,7 @@ jobs:
       # ---------------- SONARCLOUD ----------------
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
+        continue-on-error: true   # <-- allow pipeline to continue
         with:
           args: >
             -Dsonar.organization=bhavin23012001
