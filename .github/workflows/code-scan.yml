@@ -13,13 +13,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ---------------- Checkout ----------------
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 # Required for SonarCloud analysis
 
-      # ---------------- Node.js Setup ----------------
+      
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -33,15 +32,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
-      # ---------------- Install Dependencies ----------------
+     
       - name: Install Node.js dependencies
         run: npm install
 
-      # ---------------- Run Unit Tests with Coverage ----------------
+      
       - name: Run Tests and Generate Coverage
         run: npm test -- --coverage --coverageReporters=lcov --testPathIgnorePatterns=tests/example.spec.js
 
-      # ---------------- SONARCLOUD ----------------
+     
       - name: SonarCloud Scan (Fail if Quality Gate Fails)
         uses: SonarSource/sonarcloud-github-action@v2
         with:
