@@ -46,7 +46,7 @@ jobs:
             -Dsonar.projectKey=bhavin23012001_ShopingKaro
             -Dsonar.projectName=ShopingKaro
             -Dsonar.qualitygate.wait=true
-            -X # Enables full debug logging
+            -X
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: "https://sonarcloud.io"
