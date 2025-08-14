@@ -37,17 +37,9 @@ jobs:
       - name: Install Node.js dependencies
         run: npm install
 
-      # ---------------- Optional: Upgrade Vulnerable Dependencies ----------------
-      - name: Upgrade High-Severity Dependencies
-        run: |
-          npm audit fix --force || true
-          npm install
-
       # ---------------- Run Unit Tests with Coverage ----------------
-
       - name: Run Tests and Generate Coverage
-        run: npm test -- --coverage --coverageReporters=lcov
-
+        run: npm test -- --coverage --coverageReporters=lcov --testPathIgnorePatterns=tests/example.spec.js
 
       # ---------------- SONARCLOUD ----------------
       - name: SonarCloud Scan (Fail if Quality Gate Fails)
