@@ -19,7 +19,6 @@ jobs:
         with:
           fetch-depth: 0 # Required for better SonarCloud analysis
 
-      # ---------------- SONARCLOUD ----------------
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
         with:
@@ -32,7 +31,6 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: "https://sonarcloud.io"
 
-      # ---------------- TRIVY ----------------
       - name: Install Trivy
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh
@@ -42,7 +40,6 @@ jobs:
       - name: Run Trivy Scan on filesystem
         run: trivy fs --exit-code 1 --severity HIGH,CRITICAL .
 
-      # ---------------- SNYK ----------------
       - name: Set up Node.js for Snyk
         uses: actions/setup-node@v4
         with:
