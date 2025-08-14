@@ -17,8 +17,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Required for better SonarCloud analysis
+          fetch-depth: 0 # Required for SonarCloud
 
+      # ---------------- SONARCLOUD ----------------
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
         with:
@@ -31,24 +32,34 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: "https://sonarcloud.io"
 
+      # ---------------- TRIVY ----------------
       - name: Install Trivy
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh
           sudo mv ./bin/trivy /usr/local/bin/trivy
           trivy --version
 
-      - name: Run Trivy Scan on filesystem
+      - name: Run Trivy Scan
         run: trivy fs --exit-code 1 --severity HIGH,CRITICAL .
 
-      - name: Set up Node.js for Snyk
+      # ---------------- SNYK ----------------
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
 
+      - name: Cache Node.js dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
       - name: Install Snyk
         run: npm install -g snyk
 
-      - name: Run Snyk to check for vulnerabilities
+      - name: Run Snyk Scan
         run: snyk test --all-projects
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
