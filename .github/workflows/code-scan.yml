@@ -34,6 +34,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
+      # ---------------- Sync package-lock ----------------
+      - name: Sync package-lock.json
+        run: npm install --package-lock-only
+
       - name: Install Node.js dependencies
         run: npm ci
 
