@@ -44,9 +44,10 @@ jobs:
           npm install
 
       # ---------------- Run Unit Tests with Coverage ----------------
-      # (Non-blocking — does not fail if tests fail)
+
       - name: Run Tests and Generate Coverage
-        run: npm test -- --coverage --coverageReporters=lcov || true
+        run: npm test -- --coverage --coverageReporters=lcov
+
 
       # ---------------- SONARCLOUD ----------------
       - name: SonarCloud Scan (Fail if Quality Gate Fails)
