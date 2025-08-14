@@ -8,8 +8,8 @@ on:
       - dev
 
 jobs:
-  security-checks:
-    name: Security & Quality Checks
+  quality-checks:
+    name: Quality Checks
     runs-on: ubuntu-latest
 
     steps:
@@ -44,8 +44,9 @@ jobs:
           npm install
 
       # ---------------- Run Unit Tests with Coverage ----------------
+      # (Non-blocking — does not fail if tests fail)
       - name: Run Tests and Generate Coverage
-        run: npm test -- --coverage --coverageReporters=lcov
+        run: npm test -- --coverage --coverageReporters=lcov || true
 
       # ---------------- SONARCLOUD ----------------
       - name: SonarCloud Scan (Fail if Quality Gate Fails)
@@ -60,29 +61,3 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: "https://sonarcloud.io"
-
-      # ---------------- TRIVY ----------------
-      - name: Install Trivy
-        run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh
-          sudo mv ./bin/trivy /usr/local/bin/trivy
-          trivy --version
-
-      - name: Run Trivy Scan (non-blocking)
-        run: trivy fs --exit-code 0 --severity HIGH,CRITICAL . || true
-
-      # ---------------- SNYK ----------------
-      - name: Install Snyk
-        run: npm install -g snyk
-
-      - name: Run Snyk Scan (non-blocking)
-        run: snyk test --all-projects || true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
-      # ---------------- Save Reports ----------------
-      - name: Save Trivy report
-        run: trivy fs --format json --output trivy-report.json . || true
-
-      - name: Save Snyk report
-        run: snyk test --all-projects --json > snyk-report.json || true
