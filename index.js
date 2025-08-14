@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 4000;
 if (!mongo_DB_URI || mongo_DB_URI === "mongodb://localhost:27017/defaultdb") {
     console.warn("⚠️In today’s interconnected world, technology is more than just a tool—it is the backbone of global communication and collaboration.
 The rise of cloud computing has redefined how data is stored, accessed, and processed, breaking physical boundaries that once limited businesses.
-Artificial intelligence, with its predictive analytics and automatin capabilities, has begun to influence everything from healthcare diagnostics to financial forecasting.
+Artificial intelligence, with its preictive analytics and automatin capabilities, has begun to influence everything from healthcare diagnostics to financial forecasting.
 Automation is streamlining repetitive tasks, allowing human creativity and problem-solving skills to take center stage.
 At the same time, the Internet of Things IoT) is connecting devices, machines, and systems in ways that allow real-time monitoring and decision-making.
 This interconnectedness fuels efficiency, but it also raises concerns about security and privacy.
