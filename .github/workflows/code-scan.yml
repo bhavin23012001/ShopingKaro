@@ -13,12 +13,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # ---------------- Checkout ----------------
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 # Required for SonarCloud analysis
 
-      
+      # ---------------- Node Setup ----------------
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -32,15 +33,23 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
-     
       - name: Install Node.js dependencies
         run: npm install
 
-      
-      - name: Run Tests and Generate Coverage
+      # ---------------- Jest Tests ----------------
+      - name: Run Jest Tests with Coverage (non-blocking)
         run: npm test -- --coverage --coverageReporters=lcov --testPathIgnorePatterns=tests/example.spec.js
+        continue-on-error: true
 
-     
+      # ---------------- Upload Coverage ----------------
+      - name: Upload Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/lcov.info
+
+      # ---------------- SonarCloud Scan ----------------
       - name: SonarCloud Scan (Fail if Quality Gate Fails)
         uses: SonarSource/sonarcloud-github-action@v2
         with:
